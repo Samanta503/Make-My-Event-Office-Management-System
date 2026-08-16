@@ -1,13 +1,16 @@
 import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Platform, Pressable, StyleSheet } from 'react-native';
 
 import { HelloWave } from '@/components/hello-wave';
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Link } from 'expo-router';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function HomeScreen() {
+  const { employee, logout } = useAuth();
+
   return (
     <ParallaxScrollView
       headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
@@ -18,8 +21,15 @@ export default function HomeScreen() {
         />
       }>
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
+        <ThemedText type="title">Welcome{employee ? `, ${employee.fullName}` : ''}!</ThemedText>
         <HelloWave />
+      </ThemedView>
+      <ThemedView style={styles.stepContainer}>
+        <ThemedText type="subtitle">Signed in as</ThemedText>
+        <ThemedText>{employee?.email}</ThemedText>
+        <Pressable style={styles.logoutButton} onPress={logout}>
+          <ThemedText style={styles.logoutButtonText}>Log Out</ThemedText>
+        </Pressable>
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle">Step 1: Try it</ThemedText>
@@ -94,5 +104,16 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     position: 'absolute',
+  },
+  logoutButton: {
+    backgroundColor: '#d32f2f',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignSelf: 'flex-start',
+  },
+  logoutButtonText: {
+    color: '#fff',
+    fontWeight: '600',
   },
 });
