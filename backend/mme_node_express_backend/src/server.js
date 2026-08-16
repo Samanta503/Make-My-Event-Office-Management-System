@@ -19,12 +19,14 @@ import adminCalendarRoutes from "./routes/adminCalendar.js";
 import adminDashboardRoutes from "./routes/adminDashboard.js";
 import meetingRoutes, { uploadsRootDirectory } from "./routes/meetings.js";
 import callRoutes from "./routes/calls.js";
+import mobileAuthRoutes from "./routes/mobileAuth.js";
 
 import {
   errorHandler,
   notFoundHandler,
 } from "./middleware/errorHandler.js";
 import { requireEmployee, isValidSession } from "./middleware/employeeAuth.js";
+import { attachBearerToken } from "./middleware/attachBearerToken.js";
 
 const app = express();
 
@@ -136,15 +138,16 @@ app.get("/api/health", async (req, res, next) => {
 */
 
 app.use("/api/employees", employeeRoutes);
-app.use("/api/workspace", requireEmployee, workspaceRoutes);
-app.use("/api/calendar", requireEmployee, calendarRoutes);
+app.use("/api/mobile/auth", mobileAuthRoutes);
+app.use("/api/workspace", attachBearerToken, requireEmployee, workspaceRoutes);
+app.use("/api/calendar", attachBearerToken, requireEmployee, calendarRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/admin", adminActivityRoutes);
 app.use("/api/admin", adminCalendarRoutes);
 app.use("/api/admin", adminDashboardRoutes);
-app.use("/api/meetings", requireEmployee, meetingRoutes);
-app.use("/api/calls", requireEmployee, callRoutes);
+app.use("/api/meetings", attachBearerToken, requireEmployee, meetingRoutes);
+app.use("/api/calls", attachBearerToken, requireEmployee, callRoutes);
 
 /*
 |--------------------------------------------------------------------------
