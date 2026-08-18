@@ -1,6 +1,9 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text } from "react-native";
 
+import AppButton from "@/components/common/AppButton";
+import AppInput from "@/components/common/AppInput";
+import ScreenContainer from "@/components/common/ScreenContainer";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function LoginScreen() {
@@ -30,12 +33,11 @@ export default function LoginScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <ScreenContainer style={styles.container}>
       <Text style={styles.title}>Make My Event</Text>
       <Text style={styles.subtitle}>Employee sign in</Text>
 
-      <TextInput
-        style={styles.input}
+      <AppInput
         placeholder="Email"
         autoCapitalize="none"
         keyboardType="email-address"
@@ -43,8 +45,7 @@ export default function LoginScreen() {
         onChangeText={setEmail}
         editable={!isSubmitting}
       />
-      <TextInput
-        style={styles.input}
+      <AppInput
         placeholder="Password"
         secureTextEntry
         value={password}
@@ -54,18 +55,14 @@ export default function LoginScreen() {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <Pressable style={styles.button} onPress={handleSubmit} disabled={isSubmitting}>
-        {isSubmitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Log In</Text>}
-      </Pressable>
-    </View>
+      <AppButton title="Log In" onPress={handleSubmit} loading={isSubmitting} style={styles.button} />
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     justifyContent: "center",
-    padding: 24,
     gap: 12,
   },
   title: {
@@ -79,28 +76,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 12,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: "#d0d0d0",
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-  },
   error: {
     color: "#d32f2f",
     textAlign: "center",
   },
   button: {
-    backgroundColor: "#0a7ea4",
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: "center",
     marginTop: 8,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
   },
 });
