@@ -1,119 +1,89 @@
-import { Image } from 'expo-image';
-import { Platform, Pressable, StyleSheet } from 'react-native';
+import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import ActivityCard from '@/components/dashboard/ActivityCard';
+import SummaryCard from '@/components/dashboard/SummaryCard';
+import EmptyState from '@/components/common/EmptyState';
+import ErrorState from '@/components/common/ErrorState';
+import LoadingScreen from '@/components/common/LoadingScreen';
+import ScreenContainer from '@/components/common/ScreenContainer';
 import { useAuth } from '@/hooks/useAuth';
+import { useDashboard } from '@/hooks/useDashboard';
 
-export default function HomeScreen() {
+export default function DashboardScreen() {
   const { employee, logout } = useAuth();
+  const { summary, isLoading, isError, error, refetch, isRefetching } = useDashboard();
+
+  if (isLoading) {
+    return <LoadingScreen message="Loading your dashboard..." />;
+  }
+
+  if (isError) {
+    return <ErrorState message={error?.message} onRetry={refetch} />;
+  }
 
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome{employee ? `, ${employee.fullName}` : ''}!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Signed in as</ThemedText>
-        <ThemedText>{employee?.email}</ThemedText>
-        <Pressable style={styles.logoutButton} onPress={logout}>
-          <ThemedText style={styles.logoutButtonText}>Log Out</ThemedText>
+    <ScreenContainer
+      scroll
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}>
+      <View style={styles.header}>
+        <Text style={styles.greeting}>Hello, {employee?.fullName?.split(' ')[0] || 'there'}</Text>
+        <Pressable onPress={logout}>
+          <Text style={styles.logout}>Log Out</Text>
         </Pressable>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+      </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      <View style={styles.summaryRow}>
+        <SummaryCard label="Today's Calls" count={summary.counts.todayCalls} color="#0a7ea4" />
+        <SummaryCard label="Today's Meetings" count={summary.counts.todayMeetings} color="#8b5cf6" />
+      </View>
+      <View style={styles.summaryRow}>
+        <SummaryCard label="Overdue Calls" count={summary.counts.overdueCalls} color="#d32f2f" />
+        <SummaryCard label="Overdue Meetings" count={summary.counts.overdueMeetings} color="#d32f2f" />
+      </View>
+
+      <Text style={styles.sectionTitle}>Next Up</Text>
+      {summary.nextActivities.length === 0 ? (
+        <EmptyState title="Nothing scheduled" message="No upcoming calls or meetings this month." />
+      ) : (
+        <View style={styles.list}>
+          {summary.nextActivities.map((event) => (
+            <ActivityCard key={event.id} event={event} />
+          ))}
+        </View>
+      )}
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 8,
+    marginBottom: 20,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  greeting: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#11181C',
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-  logoutButton: {
-    backgroundColor: '#d32f2f',
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    alignSelf: 'flex-start',
-  },
-  logoutButtonText: {
-    color: '#fff',
+  logout: {
+    color: '#d32f2f',
     fontWeight: '600',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 8,
+    marginBottom: 12,
+    color: '#11181C',
+  },
+  list: {
+    gap: 10,
   },
 });

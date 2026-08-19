@@ -5,11 +5,15 @@ import { ScrollView, StyleSheet, View } from 'react-native';
  * Standard screen wrapper — safe-area spacing, background, and padding so
  * feature screens never re-implement this boilerplate.
  */
-export default function ScreenContainer({ children, scroll = false, style }) {
+export default function ScreenContainer({ children, scroll = false, style, refreshControl }) {
   if (scroll) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <ScrollView contentContainerStyle={[styles.scrollContent, style]}>{children}</ScrollView>
+        <ScrollView
+          contentContainerStyle={[styles.scrollContent, style]}
+          refreshControl={refreshControl}>
+          {children}
+        </ScrollView>
       </SafeAreaView>
     );
   }
