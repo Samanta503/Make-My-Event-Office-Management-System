@@ -1,10 +1,12 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 
+import { Brand } from '@/constants/theme';
+
 const VARIANT_STYLES = {
-  primary: { backgroundColor: '#0a7ea4', textColor: '#fff' },
-  secondary: { backgroundColor: '#e6f4fe', textColor: '#0a7ea4' },
+  primary: { backgroundColor: Brand.plum, textColor: '#fff' },
+  secondary: { backgroundColor: Brand.blush, textColor: Brand.purple },
   danger: { backgroundColor: '#d32f2f', textColor: '#fff' },
-  outline: { backgroundColor: 'transparent', textColor: '#0a7ea4', borderColor: '#0a7ea4' },
+  outline: { backgroundColor: 'transparent', textColor: Brand.plum, borderColor: Brand.plum },
 };
 
 export default function AppButton({

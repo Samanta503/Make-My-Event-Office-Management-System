@@ -10,6 +10,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 const MAPPING = {
   'house.fill': 'home',
   'paperplane.fill': 'send',
+  'person.2.fill': 'people',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
 };

@@ -6,6 +6,7 @@ import EmptyState from '@/components/common/EmptyState';
 import ErrorState from '@/components/common/ErrorState';
 import LoadingScreen from '@/components/common/LoadingScreen';
 import ScreenContainer from '@/components/common/ScreenContainer';
+import { Brand } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useDashboard } from '@/hooks/useDashboard';
 
@@ -33,8 +34,8 @@ export default function DashboardScreen() {
       </View>
 
       <View style={styles.summaryRow}>
-        <SummaryCard label="Today's Calls" count={summary.counts.todayCalls} color="#0a7ea4" />
-        <SummaryCard label="Today's Meetings" count={summary.counts.todayMeetings} color="#8b5cf6" />
+        <SummaryCard label="Today's Calls" count={summary.counts.todayCalls} color={Brand.plum} />
+        <SummaryCard label="Today's Meetings" count={summary.counts.todayMeetings} color={Brand.mauve} />
       </View>
       <View style={styles.summaryRow}>
         <SummaryCard label="Overdue Calls" count={summary.counts.overdueCalls} color="#d32f2f" />
@@ -65,10 +66,10 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#11181C',
+    color: Brand.purple,
   },
   logout: {
-    color: '#d32f2f',
+    color: Brand.purple,
     fontWeight: '600',
   },
   summaryRow: {
@@ -81,7 +82,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 8,
     marginBottom: 12,
-    color: '#11181C',
+    color: Brand.purple,
   },
   list: {
     gap: 10,

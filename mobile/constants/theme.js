@@ -5,16 +5,28 @@
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+// Matches the web app's brand palette exactly (see
+// frontend/.../src/index.css `@theme` block) so the mobile app looks like
+// the same product, not a generic Expo starter.
+export const Brand = {
+  blush: '#f3ccde',
+  pink: '#d6a8c4',
+  mauve: '#ba88ae',
+  plum: '#9e6899',
+  purple: '#5b3765',
+  background: '#fff9fc',
+};
+
+const tintColorLight = Brand.plum;
+const tintColorDark = Brand.blush;
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
+    text: Brand.purple,
+    background: Brand.background,
     tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
+    icon: Brand.mauve,
+    tabIconDefault: Brand.mauve,
     tabIconSelected: tintColorLight,
   },
   dark: {

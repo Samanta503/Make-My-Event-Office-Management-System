@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import AppButton from './AppButton';
+import { Brand } from '@/constants/theme';
 
 export default function ErrorState({ message = 'Something went wrong.', onRetry }) {
   return (
@@ -25,11 +26,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#11181C',
+    color: Brand.purple,
   },
   message: {
     fontSize: 14,
-    color: '#687076',
+    color: Brand.mauve,
     textAlign: 'center',
   },
   retryButton: {

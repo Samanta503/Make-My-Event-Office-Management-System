@@ -1,6 +1,8 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { Brand } from '@/constants/theme';
+
 /**
  * Standard screen wrapper — safe-area spacing, background, and padding so
  * feature screens never re-implement this boilerplate.
@@ -28,7 +30,7 @@ export default function ScreenContainer({ children, scroll = false, style, refre
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Brand.background,
   },
   content: {
     flex: 1,

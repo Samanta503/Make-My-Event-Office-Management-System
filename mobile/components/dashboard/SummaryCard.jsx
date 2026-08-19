@@ -1,6 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-export default function SummaryCard({ label, count, color = '#0a7ea4' }) {
+import { Brand } from '@/constants/theme';
+
+export default function SummaryCard({ label, count, color = Brand.plum }) {
   return (
     <View style={styles.card}>
       <Text style={[styles.count, { color }]}>{count}</Text>
@@ -24,7 +26,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    color: '#687076',
+    color: Brand.mauve,
     textAlign: 'center',
   },
 });

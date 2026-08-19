@@ -1,5 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { Brand } from '@/constants/theme';
+
 export default function EmptyState({ title = 'Nothing here yet', message }) {
   return (
     <View style={styles.container}>
@@ -20,11 +22,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#11181C',
+    color: Brand.purple,
   },
   message: {
     fontSize: 14,
-    color: '#687076',
+    color: Brand.mauve,
     textAlign: 'center',
   },
 });

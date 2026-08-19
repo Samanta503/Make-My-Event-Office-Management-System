@@ -1,18 +1,20 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { Brand } from '@/constants/theme';
+
 const TYPE_LABEL = {
   client_next_call: 'Call',
   client_next_meeting: 'Meeting',
 };
 
 const TYPE_COLOR = {
-  client_next_call: '#0a7ea4',
-  client_next_meeting: '#8b5cf6',
+  client_next_call: Brand.plum,
+  client_next_meeting: Brand.mauve,
 };
 
 export default function ActivityCard({ event }) {
   const label = TYPE_LABEL[event.source] || 'Activity';
-  const color = TYPE_COLOR[event.source] || '#687076';
+  const color = TYPE_COLOR[event.source] || Brand.mauve;
 
   return (
     <View style={styles.card}>
@@ -53,10 +55,10 @@ const styles = StyleSheet.create({
   clientName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#11181C',
+    color: Brand.purple,
   },
   time: {
     fontSize: 13,
-    color: '#687076',
+    color: Brand.mauve,
   },
 });

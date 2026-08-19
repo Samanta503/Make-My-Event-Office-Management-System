@@ -4,6 +4,7 @@ import { StyleSheet, Text } from "react-native";
 import AppButton from "@/components/common/AppButton";
 import AppInput from "@/components/common/AppInput";
 import ScreenContainer from "@/components/common/ScreenContainer";
+import { Brand } from "@/constants/theme";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function LoginScreen() {
@@ -69,10 +70,11 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "bold",
     textAlign: "center",
+    color: Brand.purple,
   },
   subtitle: {
     fontSize: 16,
-    color: "#687076",
+    color: Brand.mauve,
     textAlign: "center",
     marginBottom: 12,
   },
