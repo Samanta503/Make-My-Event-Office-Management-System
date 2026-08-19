@@ -6,6 +6,14 @@ export function todayDateString() {
   return `${year}-${month}-${day}`;
 }
 
+// "YYYY-MM-DDTHH:MM" using the Date object's LOCAL wall-clock getters —
+// matches exactly what an HTML <input type="datetime-local"> submits, which
+// is what the backend's parseDateTimeLocal() expects (see dbDates.js).
+export function toDateTimeLocalString(date) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export function formatDisplayDate(dateStr) {
   if (!dateStr) return "";
   const [year, month, day] = dateStr.split("-").map(Number);

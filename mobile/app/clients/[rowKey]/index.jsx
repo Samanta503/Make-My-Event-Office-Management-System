@@ -1,5 +1,5 @@
 import { Linking, StyleSheet, Text, View } from 'react-native';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
 import AppButton from '@/components/common/AppButton';
 import ErrorState from '@/components/common/ErrorState';
@@ -19,6 +19,7 @@ function Row({ label, value }) {
 
 export default function ClientDetailScreen() {
   const { rowKey } = useLocalSearchParams();
+  const router = useRouter();
   const { client, isLoading, isError, error, refetch } = useClient(rowKey);
 
   if (isLoading) {
@@ -53,9 +54,17 @@ export default function ClientDetailScreen() {
         <Row label="Next Call" value={client.nextCallDatetime} />
       </View>
 
-      {client.phone ? (
-        <AppButton title={`Call ${client.phone}`} onPress={handleCall} style={styles.callButton} />
-      ) : null}
+      <View style={styles.actions}>
+        {client.phone ? (
+          <AppButton title={`Call ${client.phone}`} onPress={handleCall} style={styles.actionButton} />
+        ) : null}
+        <AppButton
+          title="View Call History"
+          variant="outline"
+          onPress={() => router.push(`/clients/${rowKey}/calls`)}
+          style={styles.actionButton}
+        />
+      </View>
     </ScreenContainer>
   );
 }
@@ -93,7 +102,10 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     textAlign: 'right',
   },
-  callButton: {
-    marginTop: 8,
+  actions: {
+    gap: 10,
+  },
+  actionButton: {
+    marginTop: 0,
   },
 });
