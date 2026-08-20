@@ -13,12 +13,14 @@ import LoadingScreen from '@/components/common/LoadingScreen';
 import ScreenContainer from '@/components/common/ScreenContainer';
 import { Brand } from '@/constants/theme';
 import { queryKeys } from '@/constants/queryKeys';
+import { useAuth } from '@/hooks/useAuth';
 import { useCalls } from '@/hooks/useCalls';
 import { createCall, updateCall } from '@/services/api/callsApi';
 import { todayDateString, toDateTimeLocalString } from '@/utils/dates';
 
 export default function CallsScreen() {
   const { rowKey } = useLocalSearchParams();
+  const { employee } = useAuth();
   const queryClient = useQueryClient();
   const { data, isLoading, isError, error, refetch } = useCalls(rowKey);
 
@@ -26,7 +28,7 @@ export default function CallsScreen() {
   const [discussion, setDiscussion] = useState('');
   const [showNextCall, setShowNextCall] = useState(false);
   const [nextCallDate, setNextCallDate] = useState(new Date());
-  const [nextCallEmployeeId, setNextCallEmployeeId] = useState(null);
+  const [nextCallEmployeeId, setNextCallEmployeeId] = useState(employee?.id || null);
   const [isLogging, setIsLogging] = useState(false);
   const [savingCallId, setSavingCallId] = useState(null);
   const [formError, setFormError] = useState('');
@@ -46,7 +48,7 @@ export default function CallsScreen() {
     setDiscussion('');
     setShowNextCall(false);
     setNextCallDate(new Date());
-    setNextCallEmployeeId(null);
+    setNextCallEmployeeId(employee?.id || null);
     setFormError('');
   }
 

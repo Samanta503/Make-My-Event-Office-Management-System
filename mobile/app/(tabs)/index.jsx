@@ -42,12 +42,23 @@ export default function DashboardScreen() {
         <SummaryCard label="Overdue Meetings" count={summary.counts.overdueMeetings} color="#d32f2f" />
       </View>
 
-      <Text style={styles.sectionTitle}>Next Up</Text>
-      {summary.nextActivities.length === 0 ? (
-        <EmptyState title="Nothing scheduled" message="No upcoming calls or meetings this month." />
+      <Text style={styles.sectionTitle}>Upcoming Calls</Text>
+      {summary.upcomingCallActivities.length === 0 ? (
+        <EmptyState title="No upcoming calls" message="Nothing scheduled this month." />
       ) : (
         <View style={styles.list}>
-          {summary.nextActivities.map((event) => (
+          {summary.upcomingCallActivities.map((event) => (
+            <ActivityCard key={event.id} event={event} />
+          ))}
+        </View>
+      )}
+
+      <Text style={styles.sectionTitle}>Upcoming Meetings</Text>
+      {summary.upcomingMeetingActivities.length === 0 ? (
+        <EmptyState title="No upcoming meetings" message="Nothing scheduled this month." />
+      ) : (
+        <View style={styles.list}>
+          {summary.upcomingMeetingActivities.map((event) => (
             <ActivityCard key={event.id} event={event} />
           ))}
         </View>

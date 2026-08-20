@@ -4,14 +4,21 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import AppButton from '@/components/common/AppButton';
 import NextCallFields from '@/components/calls/NextCallFields';
 import { Brand } from '@/constants/theme';
+import { useAuth } from '@/hooks/useAuth';
 import { toDateTimeLocalString } from '@/utils/dates';
 
 export default function CallCard({ call, onSchedule, isSaving }) {
+  const { employee } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [nextCallDate, setNextCallDate] = useState(
     call.nextCallDatetime ? new Date(call.nextCallDatetime) : new Date(),
   );
-  const [assignedEmployeeId, setAssignedEmployeeId] = useState(call.nextCallAssignedEmployeeId || null);
+  // Defaults to the current employee — an unassigned next call is invisible
+  // on every calendar (backend filters by assignedEmployeeId), so it must
+  // never be left null unless the employee explicitly clears it.
+  const [assignedEmployeeId, setAssignedEmployeeId] = useState(
+    call.nextCallAssignedEmployeeId || employee?.id || null,
+  );
 
   function handleSave() {
     onSchedule(call.id, {

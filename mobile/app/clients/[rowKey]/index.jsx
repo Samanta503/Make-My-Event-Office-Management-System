@@ -64,6 +64,12 @@ export default function ClientDetailScreen() {
           onPress={() => router.push(`/clients/${rowKey}/calls`)}
           style={styles.actionButton}
         />
+        <AppButton
+          title="View Meeting History"
+          variant="outline"
+          onPress={() => router.push(`/clients/${rowKey}/meetings`)}
+          style={styles.actionButton}
+        />
       </View>
     </ScreenContainer>
   );
