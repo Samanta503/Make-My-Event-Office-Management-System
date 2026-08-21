@@ -200,7 +200,7 @@ export default function MeetingsScreen() {
 
           {!showNextMeeting ? (
             <Text style={styles.scheduleLink} onPress={() => setShowNextMeeting(true)}>
-              + Schedule next meeting (optional)
+              + Schedule next meeting
             </Text>
           ) : (
             <View style={styles.nextMeetingSection}>

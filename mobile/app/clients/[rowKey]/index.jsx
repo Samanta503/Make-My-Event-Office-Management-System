@@ -40,9 +40,9 @@ export default function ClientDetailScreen() {
       <Stack.Screen options={{ headerShown: true, title: client.name || 'Client' }} />
 
       <Text style={styles.name}>{client.name || 'Unnamed client'}</Text>
-      {client.venue ? <Text style={styles.venue}>{client.venue}</Text> : null}
 
       <View style={styles.section}>
+        <Row label="Venue" value={client.venue} />
         <Row label="Event Date" value={client.eventDate} />
         <Row label="Shift" value={client.shift} />
         <Row label="Floor" value={client.floor} />
@@ -80,11 +80,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     color: Brand.purple,
-  },
-  venue: {
-    fontSize: 15,
-    color: Brand.mauve,
-    marginBottom: 16,
   },
   section: {
     gap: 10,

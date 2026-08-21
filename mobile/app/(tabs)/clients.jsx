@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 
+import AppButton from '@/components/common/AppButton';
 import AppInput from '@/components/common/AppInput';
 import ClientCard from '@/components/clients/ClientCard';
 import EmptyState from '@/components/common/EmptyState';
@@ -12,6 +14,7 @@ import { useClients } from '@/hooks/useClients';
 import { filterClients } from '@/utils/clients';
 
 export default function ClientsScreen() {
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const { clients, isLoading, isError, error, refetch, isRefetching } = useClients();
 
@@ -28,6 +31,11 @@ export default function ClientsScreen() {
   return (
     <ScreenContainer>
       <Text style={styles.title}>Clients</Text>
+      <AppButton
+        title="+ Create New Client"
+        onPress={() => router.push('/clients/create')}
+        style={styles.createButton}
+      />
       <AppInput
         placeholder="Search by name, phone, or venue"
         value={search}
@@ -57,6 +65,9 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
     color: Brand.purple,
+    marginBottom: 12,
+  },
+  createButton: {
     marginBottom: 12,
   },
   search: {

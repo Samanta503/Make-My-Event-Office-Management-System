@@ -6,6 +6,13 @@ export function todayDateString() {
   return `${year}-${month}-${day}`;
 }
 
+// "YYYY-MM-DD" for an arbitrary Date — matches the format the backend's
+// Event Date column stores (see normalizeEventDate.js on the backend).
+export function toDateInputString(date) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 // "YYYY-MM-DDTHH:MM" using the Date object's LOCAL wall-clock getters —
 // matches exactly what an HTML <input type="datetime-local"> submits, which
 // is what the backend's parseDateTimeLocal() expects (see dbDates.js).

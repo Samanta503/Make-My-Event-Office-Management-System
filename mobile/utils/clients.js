@@ -77,3 +77,37 @@ export function filterClients(clients, search) {
       client.venue.toLowerCase().includes(term),
   );
 }
+
+// RFC4122 v4-shaped id (hex + dashes only) — satisfies the backend's
+// `isValidRowKey` regex without needing a native crypto/uuid dependency.
+function generateRowKey() {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
+    const random = (Math.random() * 16) | 0;
+    const value = char === "x" ? random : (random & 0x3) | 0x8;
+    return value.toString(16);
+  });
+}
+
+// Builds a brand-new sheet row for the workspace's full-replace save
+// contract — mirrors the web app's `createEmptyRow` (defaultSheet.js),
+// filling every existing column with "" then overlaying the given fields
+// via buildClientColumnMap so it lands in whichever column actually holds
+// each semantic field, however the sheet's columns were named/reordered.
+export function buildNewClientRow(columns, fields, rowNumber) {
+  const columnMap = buildClientColumnMap(columns);
+  const values = Object.fromEntries(columns.map((column) => [column.id, ""]));
+
+  for (const [field, value] of Object.entries(fields)) {
+    const columnId = columnMap[field];
+    if (columnId) values[columnId] = value;
+  }
+
+  const now = new Date().toISOString();
+  return {
+    id: generateRowKey(),
+    rowNumber,
+    values,
+    createdAt: now,
+    updatedAt: now,
+  };
+}

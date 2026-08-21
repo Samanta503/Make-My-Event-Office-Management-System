@@ -132,7 +132,7 @@ export default function CallsScreen() {
 
           {!showNextCall ? (
             <Pressable onPress={() => setShowNextCall(true)}>
-              <Text style={styles.scheduleLink}>+ Schedule next call (optional)</Text>
+              <Text style={styles.scheduleLink}>+ Schedule next call </Text>
             </Pressable>
           ) : (
             <View style={styles.nextCallSection}>
