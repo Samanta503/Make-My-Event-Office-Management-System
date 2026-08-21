@@ -3,12 +3,22 @@ import { useRouter } from 'expo-router';
 
 import { Brand } from '@/constants/theme';
 
-export default function ClientCard({ client }) {
+export default function ClientCard({ client, onRequestDelete }) {
   const router = useRouter();
 
   return (
     <Pressable style={styles.card} onPress={() => router.push(`/clients/${client.rowKey}`)}>
-      <Text style={styles.name}>{client.name || 'Unnamed client'}</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.name}>{client.name || 'Unnamed client'}</Text>
+        <Pressable
+          onPress={(event) => {
+            event.stopPropagation();
+            onRequestDelete(client.rowKey);
+          }}
+          hitSlop={8}>
+          <Text style={styles.deleteLink}>Delete</Text>
+        </Pressable>
+      </View>
       {client.venue ? <Text style={styles.detail}>{client.venue}</Text> : null}
 
       <View style={styles.metaRow}>
@@ -33,10 +43,21 @@ const styles = StyleSheet.create({
     borderColor: Brand.pink,
     gap: 4,
   },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
   name: {
     fontSize: 16,
     fontWeight: '700',
     color: Brand.purple,
+    flexShrink: 1,
+  },
+  deleteLink: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#d32f2f',
   },
   detail: {
     fontSize: 13,

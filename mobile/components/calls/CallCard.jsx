@@ -2,14 +2,20 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import AppButton from '@/components/common/AppButton';
+import AppInput from '@/components/common/AppInput';
 import NextCallFields from '@/components/calls/NextCallFields';
 import { Brand } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { toDateTimeLocalString } from '@/utils/dates';
 
-export default function CallCard({ call, onSchedule, isSaving }) {
+// Mirrors the web ClientCallsPage's CallCard: a call only "counts" once it
+// has a discussion note, so a blank one stays unlocked; otherwise Edit must
+// be tapped before the discussion/next-call fields become editable again.
+export default function CallCard({ call, onSave, onRequestDelete, isSaving }) {
   const { employee } = useAuth();
-  const [isEditing, setIsEditing] = useState(false);
+  const hasContent = Boolean(call.callDiscussion && call.callDiscussion.trim());
+  const [isEditing, setIsEditing] = useState(!hasContent);
+  const [discussion, setDiscussion] = useState(call.callDiscussion || '');
   const [nextCallDate, setNextCallDate] = useState(
     call.nextCallDatetime ? new Date(call.nextCallDatetime) : new Date(),
   );
@@ -19,10 +25,30 @@ export default function CallCard({ call, onSchedule, isSaving }) {
   const [assignedEmployeeId, setAssignedEmployeeId] = useState(
     call.nextCallAssignedEmployeeId || employee?.id || null,
   );
+  const [error, setError] = useState('');
+
+  const fieldsLocked = hasContent && !isEditing;
+
+  function handleEdit() {
+    setError('');
+    setIsEditing(true);
+  }
+
+  function handleCancel() {
+    setError('');
+    setDiscussion(call.callDiscussion || '');
+    setNextCallDate(call.nextCallDatetime ? new Date(call.nextCallDatetime) : new Date());
+    setAssignedEmployeeId(call.nextCallAssignedEmployeeId || employee?.id || null);
+    setIsEditing(false);
+  }
 
   function handleSave() {
-    onSchedule(call.id, {
-      callDiscussion: call.callDiscussion,
+    if (!discussion.trim()) {
+      setError('Add a discussion note before saving.');
+      return;
+    }
+    onSave(call.id, {
+      callDiscussion: discussion.trim(),
       nextCallDatetime: toDateTimeLocalString(nextCallDate),
       nextCallAssignedEmployeeId: assignedEmployeeId,
     });
@@ -31,28 +57,47 @@ export default function CallCard({ call, onSchedule, isSaving }) {
 
   return (
     <View style={styles.card}>
-      <Text style={styles.date}>{call.callDatetime}</Text>
-      {call.callDiscussion ? <Text style={styles.discussion}>{call.callDiscussion}</Text> : null}
+      <View style={styles.headerRow}>
+        <Text style={styles.date}>{call.callDatetime}</Text>
+        <View style={styles.headerActions}>
+          {hasContent && !isEditing ? (
+            <Pressable onPress={handleEdit}>
+              <Text style={styles.actionLink}>Edit</Text>
+            </Pressable>
+          ) : null}
+          <Pressable onPress={() => onRequestDelete(call.id)}>
+            <Text style={styles.deleteLink}>Delete</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {fieldsLocked ? (
+        call.callDiscussion ? <Text style={styles.discussion}>{call.callDiscussion}</Text> : null
+      ) : (
+        <AppInput
+          value={discussion}
+          onChangeText={setDiscussion}
+          placeholder="What was discussed?"
+          multiline
+          style={styles.discussionInput}
+        />
+      )}
+
       {call.createdByName ? <Text style={styles.meta}>Logged by {call.createdByName}</Text> : null}
       {call.assignedByEmployeeName ? (
         <Text style={styles.meta}>Assigned by {call.assignedByEmployeeName}</Text>
       ) : null}
 
-      {call.nextCallDatetime ? (
+      {!isEditing && call.nextCallDatetime ? (
         <Text style={styles.next}>
           Next call: {call.nextCallDatetime}
           {call.nextCallAssignedEmployeeName ? ` \u00b7 ${call.nextCallAssignedEmployeeName}` : ''}
         </Text>
       ) : null}
 
-      {!isEditing ? (
-        <Pressable onPress={() => setIsEditing(true)}>
-          <Text style={styles.scheduleLink}>
-            {call.nextCallDatetime ? 'Reschedule next call' : 'Schedule next call'}
-          </Text>
-        </Pressable>
-      ) : (
+      {isEditing ? (
         <View style={styles.form}>
+          <Text style={styles.nextCallLabel}>Next Call</Text>
           <NextCallFields
             value={nextCallDate}
             onChange={setNextCallDate}
@@ -60,17 +105,16 @@ export default function CallCard({ call, onSchedule, isSaving }) {
             onEmployeeChange={setAssignedEmployeeId}
           />
 
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
           <View style={styles.formActions}>
-            <AppButton
-              title="Cancel"
-              variant="outline"
-              onPress={() => setIsEditing(false)}
-              style={styles.formButton}
-            />
+            {hasContent ? (
+              <AppButton title="Cancel" variant="outline" onPress={handleCancel} style={styles.formButton} />
+            ) : null}
             <AppButton title="Save" onPress={handleSave} loading={isSaving} style={styles.formButton} />
           </View>
         </View>
-      )}
+      ) : null}
     </View>
   );
 }
@@ -84,14 +128,37 @@ const styles = StyleSheet.create({
     borderColor: Brand.pink,
     gap: 4,
   },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 14,
+  },
   date: {
     fontSize: 14,
     fontWeight: '700',
     color: Brand.purple,
   },
+  actionLink: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Brand.plum,
+  },
+  deleteLink: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#d32f2f',
+  },
   discussion: {
     fontSize: 14,
     color: Brand.purple,
+  },
+  discussionInput: {
+    minHeight: 70,
+    textAlignVertical: 'top',
   },
   meta: {
     fontSize: 12,
@@ -103,11 +170,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 4,
   },
-  scheduleLink: {
+  nextCallLabel: {
     fontSize: 13,
-    color: Brand.plum,
-    fontWeight: '600',
-    marginTop: 6,
+    fontWeight: '700',
+    color: Brand.purple,
   },
   form: {
     marginTop: 10,
@@ -120,5 +186,9 @@ const styles = StyleSheet.create({
   },
   formButton: {
     flex: 1,
+  },
+  error: {
+    color: '#d32f2f',
+    fontSize: 13,
   },
 });

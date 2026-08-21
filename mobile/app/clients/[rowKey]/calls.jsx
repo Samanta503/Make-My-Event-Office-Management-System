@@ -7,6 +7,7 @@ import AppButton from '@/components/common/AppButton';
 import AppInput from '@/components/common/AppInput';
 import CallCard from '@/components/calls/CallCard';
 import NextCallFields from '@/components/calls/NextCallFields';
+import ConfirmDialog from '@/components/common/ConfirmDialog';
 import EmptyState from '@/components/common/EmptyState';
 import ErrorState from '@/components/common/ErrorState';
 import LoadingScreen from '@/components/common/LoadingScreen';
@@ -15,7 +16,7 @@ import { Brand } from '@/constants/theme';
 import { queryKeys } from '@/constants/queryKeys';
 import { useAuth } from '@/hooks/useAuth';
 import { useCalls } from '@/hooks/useCalls';
-import { createCall, updateCall } from '@/services/api/callsApi';
+import { createCall, deleteCall, updateCall } from '@/services/api/callsApi';
 import { todayDateString, toDateTimeLocalString } from '@/utils/dates';
 
 export default function CallsScreen() {
@@ -31,6 +32,8 @@ export default function CallsScreen() {
   const [nextCallEmployeeId, setNextCallEmployeeId] = useState(employee?.id || null);
   const [isLogging, setIsLogging] = useState(false);
   const [savingCallId, setSavingCallId] = useState(null);
+  const [pendingDeleteCallId, setPendingDeleteCallId] = useState(null);
+  const [isDeletingCall, setIsDeletingCall] = useState(false);
   const [formError, setFormError] = useState('');
 
   if (isLoading) {
@@ -98,16 +101,31 @@ export default function CallsScreen() {
     }
   }
 
-  async function handleSchedule(callId, payload) {
+  async function handleSaveCall(callId, payload) {
     setSavingCallId(callId);
     setFormError('');
     try {
       await updateCall(rowKey, callId, payload);
       await refreshDependentData();
     } catch (err) {
-      setFormError(err.message || 'Failed to schedule next call.');
+      setFormError(err.message || 'Failed to save call.');
     } finally {
       setSavingCallId(null);
+    }
+  }
+
+  async function handleConfirmDeleteCall() {
+    const callId = pendingDeleteCallId;
+    setIsDeletingCall(true);
+    setFormError('');
+    try {
+      await deleteCall(rowKey, callId);
+      setPendingDeleteCallId(null);
+      await refreshDependentData();
+    } catch (err) {
+      setFormError(err.message || 'Failed to delete call.');
+    } finally {
+      setIsDeletingCall(false);
     }
   }
 
@@ -175,11 +193,26 @@ export default function CallsScreen() {
         data={calls}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => (
-          <CallCard call={item} onSchedule={handleSchedule} isSaving={savingCallId === item.id} />
+          <CallCard
+            call={item}
+            onSave={handleSaveCall}
+            onRequestDelete={setPendingDeleteCallId}
+            isSaving={savingCallId === item.id}
+          />
         )}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={<EmptyState title="No calls yet" message="Create the first call above." />}
         contentContainerStyle={calls.length === 0 ? styles.emptyContent : styles.listContent}
+      />
+
+      <ConfirmDialog
+        visible={pendingDeleteCallId !== null}
+        title="Delete this call?"
+        message="This cannot be undone."
+        confirmLabel="Yes, delete"
+        isConfirming={isDeletingCall}
+        onCancel={() => setPendingDeleteCallId(null)}
+        onConfirm={handleConfirmDeleteCall}
       />
     </ScreenContainer>
   );

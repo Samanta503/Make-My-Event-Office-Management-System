@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import AppButton from '@/components/common/AppButton';
 import NextCallFields from '@/components/calls/NextCallFields';
+import ConfirmDialog from '@/components/common/ConfirmDialog';
 import ItemSelectModal from '@/components/meetings/ItemSelectModal';
 import ItemDraftForm from '@/components/meetings/ItemDraftForm';
 import MeetingCard from '@/components/meetings/MeetingCard';
@@ -19,6 +20,7 @@ import { useMeetings } from '@/hooks/useMeetings';
 import {
   createMeeting,
   createMeetingItem,
+  deleteMeeting,
   toggleMeetingComplete,
   updateMeeting,
   uploadMeetingItemImages,
@@ -43,6 +45,8 @@ export default function MeetingsScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState('');
   const [busyKey, setBusyKey] = useState(null);
+  const [pendingDeleteMeetingId, setPendingDeleteMeetingId] = useState(null);
+  const [isDeletingMeeting, setIsDeletingMeeting] = useState(false);
 
   if (isLoading) {
     return <LoadingScreen message="Loading meetings..." />;
@@ -143,15 +147,18 @@ export default function MeetingsScreen() {
     }
   }
 
-  async function handleSchedule(meetingId, payload) {
-    setBusyKey(`schedule:${meetingId}`);
+  async function handleConfirmDeleteMeeting() {
+    const meetingId = pendingDeleteMeetingId;
+    setIsDeletingMeeting(true);
+    setFormError('');
     try {
-      await updateMeeting(rowKey, meetingId, payload);
+      await deleteMeeting(rowKey, meetingId);
+      setPendingDeleteMeetingId(null);
       await refreshDependentData();
     } catch (err) {
-      setFormError(err.message || 'Failed to schedule next meeting.');
+      setFormError(err.message || 'Failed to delete meeting.');
     } finally {
-      setBusyKey(null);
+      setIsDeletingMeeting(false);
     }
   }
 
@@ -252,15 +259,26 @@ export default function MeetingsScreen() {
         renderItem={({ item }) => (
           <MeetingCard
             meeting={item}
+            rowKey={rowKey}
             onToggleComplete={handleToggleComplete}
-            onSchedule={handleSchedule}
+            onRequestDeleteMeeting={setPendingDeleteMeetingId}
+            onChanged={refreshDependentData}
             isTogglingComplete={busyKey === `complete:${item.id}`}
-            isSchedulingNextMeeting={busyKey === `schedule:${item.id}`}
           />
         )}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={<EmptyState title="No meetings yet" message="Create the first meeting above." />}
         contentContainerStyle={meetings.length === 0 ? styles.emptyContent : styles.listContent}
+      />
+
+      <ConfirmDialog
+        visible={pendingDeleteMeetingId !== null}
+        title="Delete this meeting?"
+        message="This meeting and all its images will be permanently removed. This cannot be undone."
+        confirmLabel="Yes, delete"
+        isConfirming={isDeletingMeeting}
+        onCancel={() => setPendingDeleteMeetingId(null)}
+        onConfirm={handleConfirmDeleteMeeting}
       />
     </ScreenContainer>
   );
