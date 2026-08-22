@@ -42,12 +42,15 @@ export default function CallCard({ call, onSave, onRequestDelete, isSaving }) {
     setIsEditing(false);
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!discussion.trim()) {
       setError('Add a discussion note before saving.');
       return;
     }
-    onSave(call.id, {
+    // Wait for the parent's save + refetch before leaving edit mode —
+    // otherwise the card flips to read-only display using the still-stale
+    // cached `call` prop for a moment, which looks like the edit was lost.
+    await onSave(call.id, {
       callDiscussion: discussion.trim(),
       nextCallDatetime: toDateTimeLocalString(nextCallDate),
       nextCallAssignedEmployeeId: assignedEmployeeId,

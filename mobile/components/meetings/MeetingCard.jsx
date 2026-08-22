@@ -130,8 +130,8 @@ export default function MeetingCard({
       if (pendingItem.images?.length) {
         await uploadMeetingItemImages(rowKey, meeting.id, created.id, pendingItem.images);
       }
+      await onChanged();
       setPendingItem(null);
-      onChanged();
     } catch (err) {
       setError(err.message || 'Failed to add item.');
     } finally {
@@ -145,8 +145,8 @@ export default function MeetingCard({
     setError('');
     try {
       await deleteMeetingItem(rowKey, meeting.id, pendingDeleteItem.id);
+      await onChanged();
       setPendingDeleteItem(null);
-      onChanged();
     } catch (err) {
       setError(err.message || 'Failed to delete item.');
     } finally {
@@ -172,6 +172,24 @@ export default function MeetingCard({
         });
       }
 
+      // Whatever new item is still mid-entry (drafted via "+ Add Item" but
+      // never confirmed with its own "Add Item" button) is included here
+      // too — otherwise tapping the card's single Save button silently
+      // discards it, since handleConfirmAddItem is the only other place
+      // that would have persisted it. Mirrors the same safety net in
+      // meetings.jsx's handleSaveNewMeeting for the create-meeting flow.
+      if (pendingItem) {
+        const created = await createMeetingItem(rowKey, meeting.id, {
+          itemKey: pendingItem.itemKey,
+          customLabel: pendingItem.customLabel,
+          description: pendingItem.description,
+          quantity: pendingItem.quantity,
+        });
+        if (pendingItem.images?.length) {
+          await uploadMeetingItemImages(rowKey, meeting.id, created.id, pendingItem.images);
+        }
+      }
+
       await Promise.all(
         Object.entries(itemEdits).map(([itemId, value]) =>
           updateMeetingItem(rowKey, meeting.id, itemId, {
@@ -181,9 +199,14 @@ export default function MeetingCard({
         ),
       );
 
+      // Wait for the parent's refetch to land BEFORE leaving edit mode —
+      // otherwise the card flips to read-only display using the still-stale
+      // cached `meeting` prop for a moment, which looks exactly like the
+      // edit was lost/reverted (it wasn't — it just hadn't arrived yet).
+      await onChanged();
       setItemEdits({});
+      setPendingItem(null);
       setIsEditing(false);
-      onChanged();
     } catch (err) {
       setError(err.message || 'Failed to save meeting.');
     } finally {
