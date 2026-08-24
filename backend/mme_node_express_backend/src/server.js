@@ -137,7 +137,7 @@ app.get("/api/health", async (req, res, next) => {
 |--------------------------------------------------------------------------
 */
 
-app.use("/api/employees", employeeRoutes);
+app.use("/api/employees", attachBearerToken, employeeRoutes);
 app.use("/api/mobile/auth", mobileAuthRoutes);
 app.use("/api/workspace", attachBearerToken, requireEmployee, workspaceRoutes);
 app.use("/api/calendar", attachBearerToken, requireEmployee, calendarRoutes);
