@@ -9,10 +9,12 @@ import ScreenContainer from '@/components/common/ScreenContainer';
 import { Brand } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useDashboard } from '@/hooks/useDashboard';
+import { useResponsive } from '@/utils/responsive';
 
 export default function DashboardScreen() {
   const { employee, logout } = useAuth();
   const { summary, isLoading, isError, error, refetch, isRefetching } = useDashboard();
+  const { moderateScale } = useResponsive();
 
   if (isLoading) {
     return <LoadingScreen message="Loading your dashboard..." />;
@@ -27,7 +29,9 @@ export default function DashboardScreen() {
       scroll
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}>
       <View style={styles.header}>
-        <Text style={styles.greeting}>Hello, {employee?.fullName?.split(' ')[0] || 'there'}</Text>
+        <Text style={[styles.greeting, { fontSize: moderateScale(22) }]}>
+          Hello, {employee?.fullName?.split(' ')[0] || 'there'}
+        </Text>
         <Pressable onPress={logout}>
           <Text style={styles.logout}>Log Out</Text>
         </Pressable>
@@ -42,7 +46,7 @@ export default function DashboardScreen() {
         <SummaryCard label="Overdue Meetings" count={summary.counts.overdueMeetings} color="#d32f2f" />
       </View>
 
-      <Text style={styles.sectionTitle}>Upcoming Calls</Text>
+      <Text style={[styles.sectionTitle, { fontSize: moderateScale(18) }]}>Upcoming Calls</Text>
       {summary.upcomingCallActivities.length === 0 ? (
         <EmptyState title="No upcoming calls" message="Nothing scheduled this month." />
       ) : (
@@ -53,7 +57,7 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      <Text style={styles.sectionTitle}>Upcoming Meetings</Text>
+      <Text style={[styles.sectionTitle, { fontSize: moderateScale(18) }]}>Upcoming Meetings</Text>
       {summary.upcomingMeetingActivities.length === 0 ? (
         <EmptyState title="No upcoming meetings" message="Nothing scheduled this month." />
       ) : (
@@ -75,7 +79,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   greeting: {
-    fontSize: 22,
     fontWeight: '700',
     color: Brand.purple,
   },
@@ -85,11 +88,11 @@ const styles = StyleSheet.create({
   },
   summaryRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
     marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 18,
     fontWeight: '700',
     marginTop: 8,
     marginBottom: 12,

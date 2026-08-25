@@ -1,6 +1,7 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Brand } from '@/constants/theme';
+import { MAX_CONTENT_WIDTH, moderateScale } from '@/utils/responsive';
 
 // Mirrors the web app's shared ConfirmDialog (src/components/ConfirmDialog.jsx)
 // — same title/message/confirmLabel/cancelLabel contract, used before every
@@ -52,18 +53,18 @@ const styles = StyleSheet.create({
   },
   dialog: {
     width: '100%',
-    maxWidth: 360,
+    maxWidth: Math.min(MAX_CONTENT_WIDTH * 0.6, 400),
     backgroundColor: '#fff',
     borderRadius: 20,
     padding: 22,
   },
   title: {
-    fontSize: 18,
+    fontSize: moderateScale(18),
     fontWeight: '800',
     color: Brand.purple,
   },
   message: {
-    fontSize: 13,
+    fontSize: moderateScale(13),
     color: Brand.mauve,
     marginTop: 8,
     lineHeight: 19,
@@ -85,7 +86,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   cancelText: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     fontWeight: '700',
     color: Brand.purple,
   },
@@ -93,7 +94,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#d32f2f',
   },
   confirmText: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     fontWeight: '700',
     color: '#fff',
   },

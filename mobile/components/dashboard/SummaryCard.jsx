@@ -1,19 +1,23 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Brand } from '@/constants/theme';
+import { useResponsive } from '@/utils/responsive';
 
 export default function SummaryCard({ label, count, color = Brand.plum }) {
+  const { moderateScale } = useResponsive();
+
   return (
     <View style={styles.card}>
-      <Text style={[styles.count, { color }]}>{count}</Text>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.count, { color, fontSize: moderateScale(24) }]}>{count}</Text>
+      <Text style={[styles.label, { fontSize: moderateScale(12) }]}>{label}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '47%',
     backgroundColor: '#f5f7f8',
     borderRadius: 10,
     padding: 14,
@@ -21,11 +25,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   count: {
-    fontSize: 24,
     fontWeight: '700',
   },
   label: {
-    fontSize: 12,
     color: Brand.mauve,
     textAlign: 'center',
   },

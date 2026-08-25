@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 
 import AppButton from '@/components/common/AppButton';
 import { Brand } from '@/constants/theme';
+import { moderateScale } from '@/utils/responsive';
 
 // Shown right after picking a requirement in ItemSelectModal — collects the
 // full input the website's item row supports (description, quantity,
@@ -16,18 +17,28 @@ export default function ItemDraftForm({ selectedItem, value, onChange, onAdd, on
 
   async function handlePickImages() {
     setError('');
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      setError('Gallery permission is required to attach photos.');
-      return;
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        setError(
+          permission.canAskAgain === false
+            ? 'Photo access is blocked. Enable it for this app in your phone Settings.'
+            : 'Gallery permission is required to attach photos.'
+        );
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsMultipleSelection: true,
+        quality: 0.8,
+      });
+      if (result.canceled) return;
+      onChange({ ...value, images: [...images, ...result.assets] });
+    } catch (err) {
+      // Without this, a thrown/rejected picker call fails completely
+      // silently — the button looks like it just does nothing.
+      setError(err?.message || 'Failed to open the photo gallery.');
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
-      quality: 0.8,
-    });
-    if (result.canceled) return;
-    onChange({ ...value, images: [...images, ...result.assets] });
   }
 
   function handleRemoveImage(uri) {
@@ -102,7 +113,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   itemLabel: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     fontWeight: '700',
     color: Brand.purple,
   },
@@ -112,7 +123,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    fontSize: 13,
+    fontSize: moderateScale(13),
     color: Brand.purple,
     minHeight: 70,
     textAlignVertical: 'top',
@@ -123,7 +134,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   quantityLabel: {
-    fontSize: 13,
+    fontSize: moderateScale(13),
     fontWeight: '600',
     color: Brand.mauve,
   },
@@ -142,12 +153,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   stepButtonText: {
-    fontSize: 16,
+    fontSize: moderateScale(16),
     color: Brand.plum,
     fontWeight: '700',
   },
   quantityValue: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     color: Brand.purple,
     fontWeight: '700',
     minWidth: 20,
@@ -161,7 +172,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   uploadButtonText: {
-    fontSize: 13,
+    fontSize: moderateScale(13),
     color: Brand.plum,
     fontWeight: '600',
   },
@@ -189,12 +200,12 @@ const styles = StyleSheet.create({
   },
   thumbRemoveText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: moderateScale(12),
     fontWeight: '700',
   },
   error: {
     color: '#d32f2f',
-    fontSize: 12,
+    fontSize: moderateScale(12),
   },
   actions: {
     flexDirection: 'row',

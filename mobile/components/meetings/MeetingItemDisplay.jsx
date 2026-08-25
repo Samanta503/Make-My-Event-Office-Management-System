@@ -3,6 +3,7 @@ import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { API_ORIGIN } from '@/constants/config';
 import { Brand } from '@/constants/theme';
 import { CLIENT_REQUIREMENT_OPTIONS } from '@/constants/meetingItems';
+import { moderateScale } from '@/utils/responsive';
 
 const LABELS = Object.fromEntries(CLIENT_REQUIREMENT_OPTIONS.map((option) => [option.key, option.label]));
 
@@ -43,17 +44,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     fontWeight: '700',
     color: Brand.purple,
+    flexShrink: 1,
   },
   quantity: {
-    fontSize: 12,
+    fontSize: moderateScale(12),
     color: Brand.mauve,
     fontWeight: '600',
   },
   description: {
-    fontSize: 13,
+    fontSize: moderateScale(13),
     color: Brand.purple,
   },
   imageRow: {

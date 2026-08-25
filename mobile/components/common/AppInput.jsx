@@ -1,14 +1,26 @@
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Brand } from '@/constants/theme';
+import { useResponsive } from '@/utils/responsive';
 
 export default function AppInput({ label, error, style, rightElement, ...textInputProps }) {
+  const { moderateScale } = useResponsive();
+
   return (
     <View style={styles.container}>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
+      {label ? <Text style={[styles.label, { fontSize: moderateScale(14, 0.3) }]}>{label}</Text> : null}
       <View style={styles.inputRow}>
         <TextInput
-          style={[styles.input, rightElement ? styles.inputWithRightElement : null, error ? styles.inputError : null, style]}
+          style={[
+            styles.input,
+            {
+              paddingVertical: moderateScale(12, 0.3),
+              fontSize: moderateScale(16, 0.3),
+            },
+            rightElement ? styles.inputWithRightElement : null,
+            error ? styles.inputError : null,
+            style,
+          ]}
           placeholderTextColor={Brand.mauve}
           {...textInputProps}
         />
@@ -24,7 +36,6 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   label: {
-    fontSize: 14,
     fontWeight: '600',
     color: Brand.purple,
   },
@@ -36,8 +47,6 @@ const styles = StyleSheet.create({
     borderColor: '#d0d0d0',
     borderRadius: 8,
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
   },
   inputWithRightElement: {
     paddingRight: 44,

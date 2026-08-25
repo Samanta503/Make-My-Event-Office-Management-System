@@ -4,6 +4,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 
 import EmployeePicker from './EmployeePicker';
 import { Brand } from '@/constants/theme';
+import { moderateScale } from '@/utils/responsive';
 
 /**
  * Shared date/time + assignee picker for "next call" scheduling — used both
@@ -64,9 +65,10 @@ const styles = StyleSheet.create({
   pickerButtonText: {
     color: Brand.purple,
     fontWeight: '600',
+    fontSize: moderateScale(14),
   },
   assignLabel: {
-    fontSize: 13,
+    fontSize: moderateScale(13),
     fontWeight: '600',
     color: Brand.mauve,
   },

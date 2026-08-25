@@ -1,6 +1,7 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 
 import { Brand } from '@/constants/theme';
+import { useResponsive } from '@/utils/responsive';
 
 const VARIANT_STYLES = {
   primary: { backgroundColor: Brand.plum, textColor: '#fff' },
@@ -17,6 +18,7 @@ export default function AppButton({
   disabled = false,
   style,
 }) {
+  const { moderateScale } = useResponsive();
   const variantStyle = VARIANT_STYLES[variant] || VARIANT_STYLES.primary;
   const isDisabled = disabled || loading;
 
@@ -27,6 +29,7 @@ export default function AppButton({
       style={[
         styles.button,
         {
+          paddingVertical: moderateScale(14, 0.3),
           backgroundColor: variantStyle.backgroundColor,
           borderColor: variantStyle.borderColor || 'transparent',
           borderWidth: variantStyle.borderColor ? 1 : 0,
@@ -37,7 +40,9 @@ export default function AppButton({
       {loading ? (
         <ActivityIndicator color={variantStyle.textColor} />
       ) : (
-        <Text style={[styles.text, { color: variantStyle.textColor }]}>{title}</Text>
+        <Text style={[styles.text, { fontSize: moderateScale(16, 0.3), color: variantStyle.textColor }]}>
+          {title}
+        </Text>
       )}
     </Pressable>
   );
@@ -46,12 +51,10 @@ export default function AppButton({
 const styles = StyleSheet.create({
   button: {
     borderRadius: 8,
-    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   text: {
-    fontSize: 16,
     fontWeight: '600',
   },
 });

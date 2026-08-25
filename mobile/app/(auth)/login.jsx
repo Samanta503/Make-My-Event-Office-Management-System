@@ -7,6 +7,7 @@ import AppInput from "@/components/common/AppInput";
 import ScreenContainer from "@/components/common/ScreenContainer";
 import { Brand } from "@/constants/theme";
 import { useAuth } from "@/hooks/useAuth";
+import { moderateScale } from "@/utils/responsive";
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -78,13 +79,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   title: {
-    fontSize: 28,
+    fontSize: moderateScale(28),
     fontWeight: "bold",
     textAlign: "center",
     color: Brand.purple,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: moderateScale(16),
     color: Brand.mauve,
     textAlign: "center",
     marginBottom: 12,

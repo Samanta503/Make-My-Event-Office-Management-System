@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useClients } from '@/hooks/useClients';
 import { getWorkspace, saveWorkspace } from '@/services/api/workspaceApi';
 import { filterClients } from '@/utils/clients';
+import { moderateScale } from '@/utils/responsive';
 
 export default function ClientsScreen() {
   const router = useRouter();
@@ -107,7 +108,7 @@ export default function ClientsScreen() {
 
 const styles = StyleSheet.create({
   title: {
-    fontSize: 22,
+    fontSize: moderateScale(22),
     fontWeight: '700',
     color: Brand.purple,
     marginBottom: 12,
@@ -123,7 +124,7 @@ const styles = StyleSheet.create({
   },
   error: {
     color: '#d32f2f',
-    fontSize: 13,
+    fontSize: moderateScale(13),
     marginTop: 8,
   },
   listContent: {

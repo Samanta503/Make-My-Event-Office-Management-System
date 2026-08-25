@@ -3,6 +3,7 @@ import { FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'r
 
 import { Brand } from '@/constants/theme';
 import { CLIENT_REQUIREMENT_OPTIONS } from '@/constants/meetingItems';
+import { SCREEN_HEIGHT, moderateScale } from '@/utils/responsive';
 
 export default function ItemSelectModal({ visible, existingKeys = [], onSelect, onClose }) {
   const [otherLabel, setOtherLabel] = useState('');
@@ -91,13 +92,13 @@ const styles = StyleSheet.create({
     maxHeight: '70%',
   },
   title: {
-    fontSize: 16,
+    fontSize: moderateScale(16),
     fontWeight: '700',
     color: Brand.purple,
     marginBottom: 10,
   },
   list: {
-    maxHeight: 340,
+    maxHeight: SCREEN_HEIGHT * 0.45,
   },
   option: {
     paddingVertical: 12,
@@ -105,7 +106,7 @@ const styles = StyleSheet.create({
     borderBottomColor: Brand.blush,
   },
   optionText: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     color: Brand.purple,
     fontWeight: '600',
   },
@@ -118,7 +119,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    fontSize: 14,
+    fontSize: moderateScale(14),
     color: Brand.purple,
   },
   confirmButton: {

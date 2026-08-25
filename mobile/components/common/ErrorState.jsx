@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import AppButton from './AppButton';
 import { Brand } from '@/constants/theme';
+import { moderateScale } from '@/utils/responsive';
 
 export default function ErrorState({ message = 'Something went wrong.', onRetry }) {
   return (
@@ -24,12 +25,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   title: {
-    fontSize: 18,
+    fontSize: moderateScale(18),
     fontWeight: '700',
     color: Brand.purple,
   },
   message: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     color: Brand.mauve,
     textAlign: 'center',
   },

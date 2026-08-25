@@ -7,6 +7,7 @@ import NextCallFields from '@/components/calls/NextCallFields';
 import { Brand } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { toDateTimeLocalString } from '@/utils/dates';
+import { moderateScale } from '@/utils/responsive';
 
 // Mirrors the web ClientCallsPage's CallCard: a call only "counts" once it
 // has a discussion note, so a blank one stays unlocked; otherwise Edit must
@@ -141,22 +142,23 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   date: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     fontWeight: '700',
     color: Brand.purple,
+    flexShrink: 1,
   },
   actionLink: {
-    fontSize: 12,
+    fontSize: moderateScale(12),
     fontWeight: '700',
     color: Brand.plum,
   },
   deleteLink: {
-    fontSize: 12,
+    fontSize: moderateScale(12),
     fontWeight: '700',
     color: '#d32f2f',
   },
   discussion: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     color: Brand.purple,
   },
   discussionInput: {
@@ -164,17 +166,17 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   meta: {
-    fontSize: 12,
+    fontSize: moderateScale(12),
     color: Brand.mauve,
   },
   next: {
-    fontSize: 12,
+    fontSize: moderateScale(12),
     color: Brand.plum,
     fontWeight: '600',
     marginTop: 4,
   },
   nextCallLabel: {
-    fontSize: 13,
+    fontSize: moderateScale(13),
     fontWeight: '700',
     color: Brand.purple,
   },
@@ -192,6 +194,6 @@ const styles = StyleSheet.create({
   },
   error: {
     color: '#d32f2f',
-    fontSize: 13,
+    fontSize: moderateScale(13),
   },
 });

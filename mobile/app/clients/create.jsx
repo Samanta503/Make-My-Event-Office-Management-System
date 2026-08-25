@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { getWorkspace, saveWorkspace } from '@/services/api/workspaceApi';
 import { buildNewClientRow } from '@/utils/clients';
 import { toDateInputString } from '@/utils/dates';
+import { moderateScale } from '@/utils/responsive';
 
 const SHIFT_OPTIONS = ['Day', 'Night'];
 
@@ -171,7 +172,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   label: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     fontWeight: '600',
     color: Brand.purple,
     marginBottom: 6,
@@ -184,7 +185,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   dateButtonText: {
-    fontSize: 16,
+    fontSize: moderateScale(16),
     color: Brand.purple,
   },
   venueRow: {
@@ -203,7 +204,7 @@ const styles = StyleSheet.create({
     borderColor: Brand.plum,
   },
   venueChipText: {
-    fontSize: 13,
+    fontSize: moderateScale(13),
     fontWeight: '600',
     color: Brand.purple,
   },
@@ -226,7 +227,7 @@ const styles = StyleSheet.create({
     borderColor: Brand.plum,
   },
   shiftChipText: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     fontWeight: '600',
     color: Brand.purple,
   },
@@ -235,7 +236,7 @@ const styles = StyleSheet.create({
   },
   error: {
     color: '#d32f2f',
-    fontSize: 13,
+    fontSize: moderateScale(13),
   },
   saveButton: {
     marginTop: 4,

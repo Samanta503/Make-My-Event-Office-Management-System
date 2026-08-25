@@ -2,6 +2,7 @@ import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
 import { Brand } from '@/constants/theme';
 import { useEmployees } from '@/hooks/useEmployees';
+import { moderateScale } from '@/utils/responsive';
 
 export default function EmployeePicker({ selectedId, onSelect }) {
   const { data, isLoading } = useEmployees();
@@ -43,7 +44,7 @@ const styles = StyleSheet.create({
     borderColor: Brand.plum,
   },
   chipText: {
-    fontSize: 13,
+    fontSize: moderateScale(13),
     color: Brand.purple,
     fontWeight: '600',
   },

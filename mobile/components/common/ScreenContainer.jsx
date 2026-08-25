@@ -1,20 +1,28 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { Brand } from '@/constants/theme';
+import { MAX_CONTENT_WIDTH } from '@/utils/responsive';
 
 /**
  * Standard screen wrapper — safe-area spacing, background, and padding so
  * feature screens never re-implement this boilerplate.
+ *
+ * On tablets/large screens the content is capped at MAX_CONTENT_WIDTH and
+ * centered instead of stretching edge-to-edge, so inputs/buttons/text stay a
+ * comfortable, phone-like size no matter how wide the device is.
  */
 export default function ScreenContainer({ children, scroll = false, style, refreshControl }) {
+  const { width } = useWindowDimensions();
+  const isWideScreen = width >= MAX_CONTENT_WIDTH;
+
   if (scroll) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <ScrollView
-          contentContainerStyle={[styles.scrollContent, style]}
+          contentContainerStyle={[styles.grow, isWideScreen && styles.centerOuter]}
           refreshControl={refreshControl}>
-          {children}
+          <View style={[styles.inner, styles.grow, style]}>{children}</View>
         </ScrollView>
       </SafeAreaView>
     );
@@ -22,7 +30,9 @@ export default function ScreenContainer({ children, scroll = false, style, refre
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <View style={[styles.content, style]}>{children}</View>
+      <View style={[styles.grow, isWideScreen && styles.centerOuter]}>
+        <View style={[styles.inner, styles.grow, style]}>{children}</View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -32,12 +42,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Brand.background,
   },
-  content: {
-    flex: 1,
-    padding: 16,
-  },
-  scrollContent: {
-    padding: 16,
+  grow: {
     flexGrow: 1,
+  },
+  centerOuter: {
+    alignItems: 'center',
+  },
+  inner: {
+    width: '100%',
+    maxWidth: MAX_CONTENT_WIDTH,
+    padding: 16,
   },
 });

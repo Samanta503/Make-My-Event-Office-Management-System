@@ -19,6 +19,7 @@ import {
   uploadMeetingItemImages,
 } from '@/services/api/meetingsApi';
 import { toDateTimeLocalString } from '@/utils/dates';
+import { moderateScale } from '@/utils/responsive';
 
 const LABELS = Object.fromEntries(CLIENT_REQUIREMENT_OPTIONS.map((option) => [option.key, option.label]));
 
@@ -346,12 +347,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   date: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     fontWeight: '700',
     color: Brand.purple,
+    flexShrink: 1,
   },
   completeBadge: {
-    fontSize: 11,
+    fontSize: moderateScale(11),
     fontWeight: '700',
     color: Brand.plum,
     borderWidth: 1,
@@ -367,25 +369,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#e4f7e9',
   },
   meta: {
-    fontSize: 12,
+    fontSize: moderateScale(12),
     color: Brand.mauve,
   },
   sectionHeader: {
     marginTop: 8,
   },
   deleteLink: {
-    fontSize: 12,
+    fontSize: moderateScale(12),
     fontWeight: '700',
     color: '#d32f2f',
   },
   sectionLabel: {
-    fontSize: 12,
+    fontSize: moderateScale(12),
     fontWeight: '700',
     color: Brand.mauve,
     textTransform: 'uppercase',
   },
   emptyItems: {
-    fontSize: 13,
+    fontSize: moderateScale(13),
     color: Brand.mauve,
     fontStyle: 'italic',
   },
@@ -401,7 +403,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   itemEditLabel: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     fontWeight: '700',
     color: Brand.purple,
   },
@@ -415,7 +417,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   quantityLabel: {
-    fontSize: 13,
+    fontSize: moderateScale(13),
     fontWeight: '600',
     color: Brand.mauve,
   },
@@ -434,12 +436,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   stepButtonText: {
-    fontSize: 16,
+    fontSize: moderateScale(16),
     color: Brand.plum,
     fontWeight: '700',
   },
   quantityValue: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     fontWeight: '700',
     color: Brand.purple,
     minWidth: 20,
@@ -454,22 +456,22 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   selectItemButtonText: {
-    fontSize: 13,
+    fontSize: moderateScale(13),
     color: Brand.plum,
     fontWeight: '600',
   },
   error: {
     color: '#d32f2f',
-    fontSize: 13,
+    fontSize: moderateScale(13),
   },
   next: {
-    fontSize: 12,
+    fontSize: moderateScale(12),
     color: Brand.plum,
     fontWeight: '600',
     marginTop: 8,
   },
   nextMeetingLabel: {
-    fontSize: 13,
+    fontSize: moderateScale(13),
     fontWeight: '700',
     color: Brand.purple,
   },

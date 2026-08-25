@@ -26,6 +26,7 @@ import {
   uploadMeetingItemImages,
 } from '@/services/api/meetingsApi';
 import { todayDateString, toDateTimeLocalString } from '@/utils/dates';
+import { moderateScale } from '@/utils/responsive';
 
 let draftIdCounter = 0;
 
@@ -293,7 +294,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   formTitle: {
-    fontSize: 13,
+    fontSize: moderateScale(13),
     fontWeight: '700',
     color: Brand.mauve,
     textTransform: 'uppercase',
@@ -310,12 +311,12 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   draftLabel: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     fontWeight: '700',
     color: Brand.purple,
   },
   draftMeta: {
-    fontSize: 12,
+    fontSize: moderateScale(12),
     color: Brand.mauve,
   },
   selectItemButton: {
@@ -326,12 +327,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   selectItemButtonText: {
-    fontSize: 13,
+    fontSize: moderateScale(13),
     color: Brand.plum,
     fontWeight: '600',
   },
   scheduleLink: {
-    fontSize: 13,
+    fontSize: moderateScale(13),
     color: Brand.plum,
     fontWeight: '600',
   },
@@ -342,12 +343,12 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   nextMeetingTitle: {
-    fontSize: 13,
+    fontSize: moderateScale(13),
     fontWeight: '700',
     color: Brand.purple,
   },
   removeLink: {
-    fontSize: 12,
+    fontSize: moderateScale(12),
     color: '#d32f2f',
     fontWeight: '600',
   },
@@ -360,10 +361,10 @@ const styles = StyleSheet.create({
   },
   error: {
     color: '#d32f2f',
-    fontSize: 13,
+    fontSize: moderateScale(13),
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: moderateScale(16),
     fontWeight: '700',
     color: Brand.purple,
     marginBottom: 10,

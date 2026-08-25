@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Brand } from '@/constants/theme';
+import { moderateScale } from '@/utils/responsive';
 
 export default function EmptyState({ title = 'Nothing here yet', message }) {
   return (
@@ -20,12 +21,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   title: {
-    fontSize: 16,
+    fontSize: moderateScale(16),
     fontWeight: '600',
     color: Brand.purple,
   },
   message: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     color: Brand.mauve,
     textAlign: 'center',
   },

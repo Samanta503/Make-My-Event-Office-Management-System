@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Brand } from '@/constants/theme';
+import { useResponsive } from '@/utils/responsive';
 
 const TYPE_LABEL = {
   client_next_call: 'Call',
@@ -13,17 +14,22 @@ const TYPE_COLOR = {
 };
 
 export default function ActivityCard({ event }) {
+  const { moderateScale } = useResponsive();
   const label = TYPE_LABEL[event.source] || 'Activity';
   const color = TYPE_COLOR[event.source] || Brand.mauve;
 
   return (
     <View style={styles.card}>
       <View style={[styles.badge, { backgroundColor: color }]}>
-        <Text style={styles.badgeText}>{label}</Text>
+        <Text style={[styles.badgeText, { fontSize: moderateScale(12) }]}>{label}</Text>
       </View>
       <View style={styles.info}>
-        <Text style={styles.clientName}>{event.clientName || 'Unknown client'}</Text>
-        <Text style={styles.time}>{event.date}{event.time ? ` · ${event.time}` : ''}</Text>
+        <Text style={[styles.clientName, { fontSize: moderateScale(15) }]}>
+          {event.clientName || 'Unknown client'}
+        </Text>
+        <Text style={[styles.time, { fontSize: moderateScale(13) }]}>
+          {event.date}{event.time ? ` \u00b7 ${event.time}` : ''}
+        </Text>
       </View>
     </View>
   );
@@ -45,7 +51,6 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: '#fff',
-    fontSize: 12,
     fontWeight: '700',
   },
   info: {
@@ -53,12 +58,10 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   clientName: {
-    fontSize: 15,
     fontWeight: '600',
     color: Brand.purple,
   },
   time: {
-    fontSize: 13,
     color: Brand.mauve,
   },
 });

@@ -18,6 +18,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCalls } from '@/hooks/useCalls';
 import { createCall, deleteCall, updateCall } from '@/services/api/callsApi';
 import { todayDateString, toDateTimeLocalString } from '@/utils/dates';
+import { moderateScale } from '@/utils/responsive';
 
 export default function CallsScreen() {
   const { rowKey } = useLocalSearchParams();
@@ -227,7 +228,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   scheduleLink: {
-    fontSize: 13,
+    fontSize: moderateScale(13),
     color: Brand.plum,
     fontWeight: '600',
   },
@@ -238,12 +239,12 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   nextCallTitle: {
-    fontSize: 13,
+    fontSize: moderateScale(13),
     fontWeight: '700',
     color: Brand.purple,
   },
   removeLink: {
-    fontSize: 12,
+    fontSize: moderateScale(12),
     color: '#d32f2f',
     fontWeight: '600',
   },
@@ -256,10 +257,10 @@ const styles = StyleSheet.create({
   },
   error: {
     color: '#d32f2f',
-    fontSize: 13,
+    fontSize: moderateScale(13),
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: moderateScale(16),
     fontWeight: '700',
     color: Brand.purple,
     marginBottom: 10,

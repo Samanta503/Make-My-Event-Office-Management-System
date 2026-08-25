@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { Brand } from '@/constants/theme';
+import { moderateScale } from '@/utils/responsive';
 
 export default function ClientCard({ client, onRequestDelete }) {
   const router = useRouter();
@@ -49,18 +50,18 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   name: {
-    fontSize: 16,
+    fontSize: moderateScale(16),
     fontWeight: '700',
     color: Brand.purple,
     flexShrink: 1,
   },
   deleteLink: {
-    fontSize: 12,
+    fontSize: moderateScale(12),
     fontWeight: '700',
     color: '#d32f2f',
   },
   detail: {
-    fontSize: 13,
+    fontSize: moderateScale(13),
     color: Brand.mauve,
   },
   metaRow: {
@@ -69,11 +70,11 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   meta: {
-    fontSize: 12,
+    fontSize: moderateScale(12),
     color: Brand.mauve,
   },
   phone: {
-    fontSize: 13,
+    fontSize: moderateScale(13),
     color: Brand.plum,
     marginTop: 4,
     fontWeight: '600',

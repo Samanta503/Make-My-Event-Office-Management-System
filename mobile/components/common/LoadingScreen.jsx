@@ -1,6 +1,7 @@
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { Brand } from '@/constants/theme';
+import { moderateScale } from '@/utils/responsive';
 
 export default function LoadingScreen({ message = 'Loading...' }) {
   return (
@@ -19,7 +20,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   message: {
-    fontSize: 15,
+    fontSize: moderateScale(15),
     color: Brand.mauve,
   },
 });

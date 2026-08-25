@@ -7,6 +7,7 @@ import LoadingScreen from '@/components/common/LoadingScreen';
 import ScreenContainer from '@/components/common/ScreenContainer';
 import { Brand } from '@/constants/theme';
 import { useClient } from '@/hooks/useClient';
+import { moderateScale } from '@/utils/responsive';
 
 function Row({ label, value }) {
   return (
@@ -77,7 +78,7 @@ export default function ClientDetailScreen() {
 
 const styles = StyleSheet.create({
   name: {
-    fontSize: 24,
+    fontSize: moderateScale(24),
     fontWeight: '700',
     color: Brand.purple,
   },
@@ -93,12 +94,12 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   rowLabel: {
-    fontSize: 13,
+    fontSize: moderateScale(13),
     color: Brand.mauve,
     fontWeight: '600',
   },
   rowValue: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     color: Brand.purple,
     flexShrink: 1,
     textAlign: 'right',
