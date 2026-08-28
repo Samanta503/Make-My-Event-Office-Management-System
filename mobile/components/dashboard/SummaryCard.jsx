@@ -1,16 +1,17 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Brand } from '@/constants/theme';
 import { useResponsive } from '@/utils/responsive';
 
-export default function SummaryCard({ label, count, color = Brand.plum }) {
+export default function SummaryCard({ label, count, color = Brand.plum, onPress }) {
   const { moderateScale } = useResponsive();
+  const Container = onPress ? Pressable : View;
 
   return (
-    <View style={styles.card}>
+    <Container style={styles.card} onPress={onPress}>
       <Text style={[styles.count, { color, fontSize: moderateScale(24) }]}>{count}</Text>
       <Text style={[styles.label, { fontSize: moderateScale(12) }]}>{label}</Text>
-    </View>
+    </Container>
   );
 }
 

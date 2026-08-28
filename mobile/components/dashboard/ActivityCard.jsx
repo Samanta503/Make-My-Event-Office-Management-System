@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Brand } from '@/constants/theme';
 import { useResponsive } from '@/utils/responsive';
@@ -13,13 +13,14 @@ const TYPE_COLOR = {
   client_next_meeting: Brand.mauve,
 };
 
-export default function ActivityCard({ event }) {
+export default function ActivityCard({ event, onPress }) {
   const { moderateScale } = useResponsive();
   const label = TYPE_LABEL[event.source] || 'Activity';
   const color = TYPE_COLOR[event.source] || Brand.mauve;
+  const Container = onPress ? Pressable : View;
 
   return (
-    <View style={styles.card}>
+    <Container style={styles.card} onPress={onPress}>
       <View style={[styles.badge, { backgroundColor: color }]}>
         <Text style={[styles.badgeText, { fontSize: moderateScale(12) }]}>{label}</Text>
       </View>
@@ -31,7 +32,7 @@ export default function ActivityCard({ event }) {
           {event.date}{event.time ? ` \u00b7 ${event.time}` : ''}
         </Text>
       </View>
-    </View>
+    </Container>
   );
 }
 

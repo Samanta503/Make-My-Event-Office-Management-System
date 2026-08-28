@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import AppButton from '@/components/common/AppButton';
 import AppInput from '@/components/common/AppInput';
 import ClientCard from '@/components/clients/ClientCard';
+import ClientFilterModal from '@/components/clients/ClientFilterModal';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import EmptyState from '@/components/common/EmptyState';
 import ErrorState from '@/components/common/ErrorState';
@@ -16,8 +18,10 @@ import { queryKeys } from '@/constants/queryKeys';
 import { useAuth } from '@/hooks/useAuth';
 import { useClients } from '@/hooks/useClients';
 import { getWorkspace, saveWorkspace } from '@/services/api/workspaceApi';
-import { filterClients } from '@/utils/clients';
+import { applyClientFilters, countActiveClientFilters, filterClients } from '@/utils/clients';
 import { moderateScale } from '@/utils/responsive';
+
+const EMPTY_FILTERS = { dateFrom: '', dateTo: '', shifts: new Set(), venues: new Set() };
 
 export default function ClientsScreen() {
   const router = useRouter();
@@ -28,6 +32,9 @@ export default function ClientsScreen() {
   const [pendingDeleteRowKey, setPendingDeleteRowKey] = useState(null);
   const [isDeletingClient, setIsDeletingClient] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [sortOrder, setSortOrder] = useState('default');
 
   if (isLoading) {
     return <LoadingScreen message="Loading clients..." />;
@@ -37,7 +44,8 @@ export default function ClientsScreen() {
     return <ErrorState message={error?.message} onRetry={refetch} />;
   }
 
-  const filtered = filterClients(clients, search);
+  const activeFilterCount = countActiveClientFilters(filters);
+  const filtered = applyClientFilters(filterClients(clients, search), filters, sortOrder);
 
   async function handleConfirmDeleteClient() {
     const rowKey = pendingDeleteRowKey;
@@ -70,13 +78,25 @@ export default function ClientsScreen() {
         onPress={() => router.push('/clients/create')}
         style={styles.createButton}
       />
-      <AppInput
-        placeholder="Search by name, phone, or venue"
-        value={search}
-        onChangeText={setSearch}
-        style={styles.search}
-      />
+      <View style={styles.searchRow}>
+        <View style={styles.searchInputWrap}>
+          <AppInput
+            placeholder="Search by name, phone, or venue"
+            value={search}
+            onChangeText={setSearch}
+          />
+        </View>
+        <Pressable style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
+          <MaterialIcons name="tune" size={20} color="#fff" />
+          {activeFilterCount > 0 ? (
+            <View style={styles.filterBadge}>
+              <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+            </View>
+          ) : null}
+        </Pressable>
+      </View>
       <FlatList
+        style={styles.list}
         data={filtered}
         keyExtractor={(item) => item.rowKey}
         renderItem={({ item }) => <ClientCard client={item} onRequestDelete={setPendingDeleteRowKey} />}
@@ -85,7 +105,11 @@ export default function ClientsScreen() {
         ListEmptyComponent={
           <EmptyState
             title="No clients found"
-            message={search ? 'Try a different search term.' : 'No clients on the workspace yet.'}
+            message={
+              search || activeFilterCount > 0
+                ? 'Try a different search term or adjust your filters.'
+                : 'No clients on the workspace yet.'
+            }
           />
         }
         contentContainerStyle={filtered.length === 0 ? styles.emptyContent : styles.listContent}
@@ -102,6 +126,17 @@ export default function ClientsScreen() {
         onCancel={() => setPendingDeleteRowKey(null)}
         onConfirm={handleConfirmDeleteClient}
       />
+
+      <ClientFilterModal
+        visible={showFilterModal}
+        filters={filters}
+        sortOrder={sortOrder}
+        onChangeFilters={setFilters}
+        onChangeSortOrder={setSortOrder}
+        onClear={() => setFilters(EMPTY_FILTERS)}
+        onClose={() => setShowFilterModal(false)}
+        activeFilterCount={activeFilterCount}
+      />
     </ScreenContainer>
   );
 }
@@ -116,8 +151,42 @@ const styles = StyleSheet.create({
   createButton: {
     marginBottom: 12,
   },
-  search: {
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     marginBottom: 12,
+  },
+  searchInputWrap: {
+    flex: 1,
+  },
+  filterButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 10,
+    backgroundColor: Brand.plum,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 3,
+    backgroundColor: '#d32f2f',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterBadgeText: {
+    fontSize: moderateScale(10),
+    fontWeight: '800',
+    color: '#fff',
+  },
+  list: {
+    flex: 1,
   },
   separator: {
     height: 10,

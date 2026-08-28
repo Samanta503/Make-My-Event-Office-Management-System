@@ -47,19 +47,17 @@ export function useDashboard() {
     const nextCalls = events.filter((event) => event.source === "client_next_call");
     const nextMeetings = events.filter((event) => event.source === "client_next_meeting");
 
-    const todayCalls = nextCalls.filter((event) => event.date === today);
-    const todayMeetings = nextMeetings.filter((event) => event.date === today);
-    const overdueCalls = nextCalls.filter((event) => event.date < today);
-    const overdueMeetings = nextMeetings.filter((event) => event.date < today);
+    const byDateTime = (a, b) => (a.date + (a.time || "")).localeCompare(b.date + (b.time || ""));
+
+    const todayCalls = nextCalls.filter((event) => event.date === today).sort(byDateTime);
+    const todayMeetings = nextMeetings.filter((event) => event.date === today).sort(byDateTime);
+    const overdueCalls = nextCalls.filter((event) => event.date < today).sort(byDateTime);
+    const overdueMeetings = nextMeetings.filter((event) => event.date < today).sort(byDateTime);
     const upcomingCalls = nextCalls.filter((event) => event.date > today);
     const upcomingMeetings = nextMeetings.filter((event) => event.date > today);
 
-    const upcomingCallActivities = [...todayCalls, ...upcomingCalls]
-      .sort((a, b) => (a.date + (a.time || "")).localeCompare(b.date + (b.time || "")))
-      .slice(0, 5);
-    const upcomingMeetingActivities = [...todayMeetings, ...upcomingMeetings]
-      .sort((a, b) => (a.date + (a.time || "")).localeCompare(b.date + (b.time || "")))
-      .slice(0, 5);
+    const upcomingCallActivities = [...todayCalls, ...upcomingCalls].sort(byDateTime).slice(0, 5);
+    const upcomingMeetingActivities = [...todayMeetings, ...upcomingMeetings].sort(byDateTime).slice(0, 5);
 
     return {
       counts: {
@@ -68,6 +66,8 @@ export function useDashboard() {
         overdueCalls: overdueCalls.length,
         overdueMeetings: overdueMeetings.length,
       },
+      todayCalls,
+      todayMeetings,
       overdueCalls,
       overdueMeetings,
       upcomingCallActivities,

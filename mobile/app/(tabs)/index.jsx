@@ -1,4 +1,5 @@
 import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 
 import ActivityCard from '@/components/dashboard/ActivityCard';
 import SummaryCard from '@/components/dashboard/SummaryCard';
@@ -15,6 +16,7 @@ export default function DashboardScreen() {
   const { employee, logout } = useAuth();
   const { summary, isLoading, isError, error, refetch, isRefetching } = useDashboard();
   const { moderateScale } = useResponsive();
+  const router = useRouter();
 
   if (isLoading) {
     return <LoadingScreen message="Loading your dashboard..." />;
@@ -38,12 +40,32 @@ export default function DashboardScreen() {
       </View>
 
       <View style={styles.summaryRow}>
-        <SummaryCard label="Today's Calls" count={summary.counts.todayCalls} color={Brand.plum} />
-        <SummaryCard label="Today's Meetings" count={summary.counts.todayMeetings} color={Brand.mauve} />
+        <SummaryCard
+          label="Today's Calls"
+          count={summary.counts.todayCalls}
+          color={Brand.plum}
+          onPress={() => router.push('/dashboard-list/todayCalls')}
+        />
+        <SummaryCard
+          label="Today's Meetings"
+          count={summary.counts.todayMeetings}
+          color={Brand.mauve}
+          onPress={() => router.push('/dashboard-list/todayMeetings')}
+        />
       </View>
       <View style={styles.summaryRow}>
-        <SummaryCard label="Overdue Calls" count={summary.counts.overdueCalls} color="#d32f2f" />
-        <SummaryCard label="Overdue Meetings" count={summary.counts.overdueMeetings} color="#d32f2f" />
+        <SummaryCard
+          label="Overdue Calls"
+          count={summary.counts.overdueCalls}
+          color="#d32f2f"
+          onPress={() => router.push('/dashboard-list/overdueCalls')}
+        />
+        <SummaryCard
+          label="Overdue Meetings"
+          count={summary.counts.overdueMeetings}
+          color="#d32f2f"
+          onPress={() => router.push('/dashboard-list/overdueMeetings')}
+        />
       </View>
 
       <Text style={[styles.sectionTitle, { fontSize: moderateScale(18) }]}>Upcoming Calls</Text>

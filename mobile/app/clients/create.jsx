@@ -9,23 +9,12 @@ import AppInput from '@/components/common/AppInput';
 import ScreenContainer from '@/components/common/ScreenContainer';
 import { Brand } from '@/constants/theme';
 import { queryKeys } from '@/constants/queryKeys';
+import { SHIFT_OPTIONS, VENUE_OPTIONS } from '@/constants/options';
 import { useAuth } from '@/hooks/useAuth';
 import { getWorkspace, saveWorkspace } from '@/services/api/workspaceApi';
 import { buildNewClientRow } from '@/utils/clients';
 import { toDateInputString } from '@/utils/dates';
 import { moderateScale } from '@/utils/responsive';
-
-const SHIFT_OPTIONS = ['Day', 'Night'];
-
-// Mirrors the web app's fixed VENUE_OPTIONS list (defaultSheet.js).
-const VENUE_OPTIONS = [
-  'Sena Prangan',
-  'Sena Malancha',
-  'Army Officers Club',
-  'Butterfly Garden',
-  'Elite Convention Hall',
-  'Dhaka Ladies Club',
-];
 
 export default function CreateClientScreen() {
   const router = useRouter();

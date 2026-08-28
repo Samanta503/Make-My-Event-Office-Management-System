@@ -63,6 +63,7 @@ export function mapRowToClient(row, columnMap = {}) {
     nextMeetingTime: get("nextMeetingTime"),
     lastCallDatetime: row.lastCallDatetime || "",
     nextCallDatetime: row.nextCallDatetime || "",
+    createdAt: row.createdAt || "",
   };
 }
 
@@ -76,6 +77,43 @@ export function filterClients(clients, search) {
       client.phone.toLowerCase().includes(term) ||
       client.venue.toLowerCase().includes(term),
   );
+}
+
+// Mirrors ManagementPage.jsx's filter dropdown (web): date range applies to
+// the client's last-meeting time, shift/venue are multi-select (empty set =
+// no restriction), and sortOrder re-orders by createdAt. `filters` shape:
+// { dateFrom: "YYYY-MM-DD", dateTo: "YYYY-MM-DD", shifts: Set, venues: Set }.
+export function applyClientFilters(clients, filters, sortOrder = "default") {
+  let rows = clients;
+
+  if (filters.dateFrom || filters.dateTo) {
+    rows = rows.filter((client) => {
+      const date = String(client.lastMeetingTime || "").replace(" ", "T").slice(0, 10);
+      if (!date) return false;
+      if (filters.dateFrom && date < filters.dateFrom) return false;
+      if (filters.dateTo && date > filters.dateTo) return false;
+      return true;
+    });
+  }
+
+  if (filters.shifts?.size > 0) {
+    rows = rows.filter((client) => filters.shifts.has(client.shift));
+  }
+
+  if (filters.venues?.size > 0) {
+    rows = rows.filter((client) => filters.venues.has(client.venue));
+  }
+
+  if (sortOrder === "newest" || sortOrder === "oldest") {
+    const sign = sortOrder === "newest" ? -1 : 1;
+    rows = [...rows].sort((a, b) => sign * (new Date(a.createdAt || 0) - new Date(b.createdAt || 0)));
+  }
+
+  return rows;
+}
+
+export function countActiveClientFilters(filters) {
+  return (filters.dateFrom ? 1 : 0) + (filters.dateTo ? 1 : 0) + filters.shifts.size + filters.venues.size;
 }
 
 // RFC4122 v4-shaped id (hex + dashes only) — satisfies the backend's
