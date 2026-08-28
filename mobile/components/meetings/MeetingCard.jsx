@@ -71,10 +71,8 @@ function MeetingItemEditRow({ item, value, onChange, onRequestDelete }) {
 export default function MeetingCard({
   meeting,
   rowKey,
-  onToggleComplete,
   onRequestDeleteMeeting,
   onChanged,
-  isTogglingComplete,
 }) {
   const { employee } = useAuth();
   const hasContent = meeting.items.length > 0;
@@ -216,14 +214,9 @@ export default function MeetingCard({
   }
 
   return (
-    <View style={[styles.card, meeting.isCompleted && styles.cardCompleted]}>
+    <View style={styles.card}>
       <View style={styles.headerRow}>
         <Text style={styles.date}>{meeting.meetingDatetime}</Text>
-        <Pressable onPress={() => onToggleComplete(meeting.id)} disabled={isTogglingComplete}>
-          <Text style={[styles.completeBadge, meeting.isCompleted && styles.completeBadgeDone]}>
-            {meeting.isCompleted ? 'Completed' : 'Mark Complete'}
-          </Text>
-        </Pressable>
       </View>
 
       {meeting.createdByName ? <Text style={styles.meta}>Logged by {meeting.createdByName}</Text> : null}
@@ -337,10 +330,6 @@ const styles = StyleSheet.create({
     borderColor: Brand.pink,
     gap: 4,
   },
-  cardCompleted: {
-    backgroundColor: '#f4fbf6',
-    borderColor: '#bfe6c9',
-  },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -351,22 +340,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Brand.purple,
     flexShrink: 1,
-  },
-  completeBadge: {
-    fontSize: moderateScale(11),
-    fontWeight: '700',
-    color: Brand.plum,
-    borderWidth: 1,
-    borderColor: Brand.pink,
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    overflow: 'hidden',
-  },
-  completeBadgeDone: {
-    color: '#1a7d3a',
-    borderColor: '#bfe6c9',
-    backgroundColor: '#e4f7e9',
   },
   meta: {
     fontSize: moderateScale(12),

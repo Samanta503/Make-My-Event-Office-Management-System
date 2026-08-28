@@ -17,10 +17,6 @@ export function updateMeeting(rowKey, meetingId, { nextMeetingDatetime, nextMeet
   });
 }
 
-export function toggleMeetingComplete(rowKey, meetingId) {
-  return apiRequest(`/meetings/${rowKey}/${meetingId}/complete`, { method: "PATCH" });
-}
-
 export function deleteMeeting(rowKey, meetingId) {
   return apiRequest(`/meetings/${rowKey}/${meetingId}`, { method: "DELETE" });
 }

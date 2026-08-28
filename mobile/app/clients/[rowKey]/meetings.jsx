@@ -21,7 +21,6 @@ import {
   createMeeting,
   createMeetingItem,
   deleteMeeting,
-  toggleMeetingComplete,
   updateMeeting,
   uploadMeetingItemImages,
 } from '@/services/api/meetingsApi';
@@ -45,7 +44,6 @@ export default function MeetingsScreen() {
   const [nextMeetingEmployeeId, setNextMeetingEmployeeId] = useState(employee?.id || null);
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState('');
-  const [busyKey, setBusyKey] = useState(null);
   const [pendingDeleteMeetingId, setPendingDeleteMeetingId] = useState(null);
   const [isDeletingMeeting, setIsDeletingMeeting] = useState(false);
 
@@ -133,18 +131,6 @@ export default function MeetingsScreen() {
       setFormError(err.message || 'Failed to save meeting.');
     } finally {
       setIsSaving(false);
-    }
-  }
-
-  async function handleToggleComplete(meetingId) {
-    setBusyKey(`complete:${meetingId}`);
-    try {
-      await toggleMeetingComplete(rowKey, meetingId);
-      await refreshDependentData();
-    } catch (err) {
-      setFormError(err.message || 'Failed to update meeting.');
-    } finally {
-      setBusyKey(null);
     }
   }
 
@@ -261,10 +247,8 @@ export default function MeetingsScreen() {
           <MeetingCard
             meeting={item}
             rowKey={rowKey}
-            onToggleComplete={handleToggleComplete}
             onRequestDeleteMeeting={setPendingDeleteMeetingId}
             onChanged={refreshDependentData}
-            isTogglingComplete={busyKey === `complete:${item.id}`}
           />
         )}
         ItemSeparatorComponent={() => <View style={styles.separator} />}

@@ -2,10 +2,13 @@
 import { Link, useNavigate } from "react-router";
 import mmeLogo from "../assets/mme-logo-cropped.png";
 import {
+  BadgeAlert,
   CalendarClock,
   CalendarDays,
   Check,
+  CheckCircle2,
   ChevronDown,
+  Clock,
   Columns3,
   FileSpreadsheet,
   LayoutGrid,
@@ -18,10 +21,12 @@ import {
   Trash2,
   Upload,
   UserRound,
+  Wallet,
   X,
 } from "lucide-react";
 import AddColumnModal from "../components/AddColumnModal";
 import ConfirmDialog from "../components/ConfirmDialog";
+import EmployeeLayout from "../components/EmployeeLayout";
 import ExcelImportModal from "../components/ExcelImportModal";
 import {
   MANDATORY_EXCEL_COLUMNS,
@@ -31,7 +36,7 @@ import {
   Showed_Column_Name,
   sortColumnsByDefaultOrder,
 } from "../data/defaultSheet";
-import { clearCurrentEmployee, loadCurrentEmployee } from "../services/authStorage";
+import { clearCurrentEmployee, fetchTodaySummary, loadCurrentEmployee } from "../services/authStorage";
 import {
   loadEmployeeDirectory,
   loadWorkspace,
@@ -61,6 +66,12 @@ function isoDateToDDMMYYYY(iso) {
   if (!match) return "";
   const [, yyyy, mm, dd] = match;
   return `${dd}/${mm}/${yyyy}`;
+}
+
+// Local calendar date (not UTC) so "today" matches the employee's own clock.
+function getTodayIso() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
 const EVENT_DATE_WEEKDAY_PATTERN =
@@ -149,7 +160,15 @@ function parseFreeTextDateToIso(raw) {
 }
 
 function isRowBlank(row, columns) {
+  if (row.alreadyBooked || row.bookedFromMme) return false;
   return columns.every((column) => String(row.values[column.id] ?? "").trim() === "");
+}
+
+// Snapshot used to detect meaningful unsaved changes — covers both the cell
+// values and the "already booked" badge (stored as a sibling row property,
+// not inside `values`).
+function rowSignature(row) {
+  return JSON.stringify({ values: row.values, alreadyBooked: Boolean(row.alreadyBooked) });
 }
 
 function buildRowSignature(values, columns) {
@@ -238,14 +257,36 @@ function saveStoredFilters(employeeId, filters) {
   }
 }
 
+function getUpcomingOnlyStorageKey(employeeId) {
+  return `mme_management_upcoming_only_v1_${employeeId || "anonymous"}`;
+}
+
+function loadStoredUpcomingOnly(employeeId) {
+  try {
+    return sessionStorage.getItem(getUpcomingOnlyStorageKey(employeeId)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function saveStoredUpcomingOnly(employeeId, value) {
+  try {
+    sessionStorage.setItem(getUpcomingOnlyStorageKey(employeeId), value ? "1" : "0");
+  } catch {
+    // Ignore storage failures (e.g. private browsing quota).
+  }
+}
+
 function getSortOrderStorageKey(employeeId) {
   return `mme_management_sort_order_v1_${employeeId || "anonymous"}`;
 }
 
+const SORT_ORDER_VALUES = new Set(["newest", "oldest", "eventDateAsc", "eventDateDesc"]);
+
 function loadStoredSortOrder(employeeId) {
   try {
     const stored = sessionStorage.getItem(getSortOrderStorageKey(employeeId));
-    return stored === "newest" || stored === "oldest" ? stored : "default";
+    return SORT_ORDER_VALUES.has(stored) ? stored : "default";
   } catch {
     return "default";
   }
@@ -391,13 +432,9 @@ function HoverPreviewPanel({ preview, onMouseEnter, onMouseLeave }) {
       ? preview.items.filter((item) => !isUpcoming(item))
       : preview.items.filter((item) => !isUpcoming(item));
 
-  // Whoever logged/held the most recent past meeting or call — for
-  // meetings, the person who marked it complete wins if that happened,
-  // otherwise the one who created the entry.
+  // Whoever logged/held the most recent past meeting or call.
   const lastDoneByName = previous.length
-    ? isMeetings
-      ? previous[0].completedByName || previous[0].createdByName
-      : previous[0].createdByName
+    ? previous[0].createdByName
     : null;
 
   // Whoever is on the hook for the next meeting/call — mirrors the
@@ -439,9 +476,6 @@ function HoverPreviewPanel({ preview, onMouseEnter, onMouseLeave }) {
           <p className={`mt-0.5 text-[10px] font-black uppercase tracking-wide ${isMissed ? "text-red-600" : "text-[#f2662b]"}`}>
             {isMissed ? "Next meeting · Missed" : "Next meeting"}
           </p>
-        )}
-        {isMeetings && item.isCompleted && (
-          <p className="mt-0.5 text-[10px] font-black uppercase tracking-wide text-emerald-600">Completed</p>
         )}
         {!isMeetings && item.isNextCallSchedule && (
           <p className={`mt-0.5 text-[10px] font-black uppercase tracking-wide ${isMissed ? "text-red-600" : "text-[#c2410c]"}`}>
@@ -714,6 +748,11 @@ export default function ManagementPage() {
   const [hoverPreview, setHoverPreview] = useState(null);
   const hoverHideTimeout = useRef(null);
   const workspaceRef = useRef({ columns: [], rows: [] });
+  // Snapshot (rowId -> JSON.stringify(values)) of the sheet as it exists on
+  // the server right now — refreshed on load and after every successful
+  // save. Lets us tell a brand-new, never-saved row apart from an edit to
+  // an already-saved one, and detect real (non-blank) unsaved content.
+  const lastSavedRowsSnapshotRef = useRef(new Map());
   const [filters, setFilters] = useState(() =>
     loadStoredFilters(employee?.id) || {
       dateFrom: "",
@@ -723,10 +762,40 @@ export default function ManagementPage() {
     },
   );
   const [sortOrder, setSortOrder] = useState(() => loadStoredSortOrder(employee?.id));
+  const [upcomingOnly, setUpcomingOnly] = useState(() => loadStoredUpcomingOnly(employee?.id));
+  const [todaySummary, setTodaySummary] = useState(null);
+
+  // Powers the header "Due Today" / "Completed Today" widget. Refetched
+  // every 60s (not a full websocket) so the count stays roughly live while
+  // an employee has the page open across the day without any user action.
+  useEffect(() => {
+    if (!employee?.id) return undefined;
+    let cancelled = false;
+
+    async function loadTodaySummary() {
+      try {
+        const data = await fetchTodaySummary();
+        if (!cancelled) setTodaySummary(data);
+      } catch {
+        // Silent failure — this is a nice-to-have widget, not core workflow.
+      }
+    }
+
+    loadTodaySummary();
+    const interval = window.setInterval(loadTodaySummary, 60000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [employee?.id]);
 
   useEffect(() => {
     saveStoredFilters(employee?.id, filters);
   }, [employee, filters]);
+
+  useEffect(() => {
+    saveStoredUpcomingOnly(employee?.id, upcomingOnly);
+  }, [employee, upcomingOnly]);
 
   useEffect(() => {
     saveStoredSortOrder(employee?.id, sortOrder);
@@ -791,7 +860,15 @@ export default function ManagementPage() {
   }
 
   const filteredRows = useMemo(() => {
-    let rows = workspace.rows;
+    // Rows added this session that haven't been saved yet are exempt from
+    // every filter/search/upcoming-only check below — a still-blank draft
+    // would otherwise never match any of them and vanish from view the
+    // moment a filter is active. They always float to the top, unfiltered,
+    // until Save Changes succeeds (at which point they leave this bucket
+    // and become subject to the exact same filters as any other row).
+    const isDraftRow = (row) => !lastSavedRowsSnapshotRef.current.has(row.id);
+    const draftRows = workspace.rows.filter(isDraftRow);
+    let rows = workspace.rows.filter((row) => !isDraftRow(row));
 
     const query = searchText.trim().toLowerCase();
     if (query) {
@@ -806,22 +883,20 @@ export default function ManagementPage() {
       );
     }
 
-    const col = (type) => workspace.columns.find((c) => c.type === type);
-
     if (filters.dateFrom || filters.dateTo) {
-      const dtCol =
-        workspace.columns.find((c) => c.type === "last_meeting_time") ||
-        workspace.columns.find((c) => c.name.toLowerCase().includes("last meeting") || c.name.toLowerCase().includes("current meeting")) ||
-        col("datetime");
+      // Filters by the "Event Date" column (a real "YYYY-MM-DD" date), not
+      // LAT/NAT (Last/Next Meeting Time) — those are live-computed and
+      // reflect meeting activity, not when the client's event itself is.
       rows = rows.filter((row) => {
-        const raw = dtCol ? String(row.values[dtCol.id] ?? "").replace(" ", "T") : "";
-        const date = raw.slice(0, 10);
+        const date = String(row.values.event_date ?? "");
         if (!date) return false;
         if (filters.dateFrom && date < filters.dateFrom) return false;
         if (filters.dateTo && date > filters.dateTo) return false;
         return true;
       });
     }
+
+    const col = (type) => workspace.columns.find((c) => c.type === type);
 
     if (filters.shifts.size > 0) {
       const c = col("shift");
@@ -832,13 +907,46 @@ export default function ManagementPage() {
       rows = rows.filter((row) => filters.venues.has(c ? row.values[c.id] ?? "" : ""));
     }
 
+    if (upcomingOnly) {
+      // Hides clients whose event date is today or already passed — no rows
+      // are ever deleted, this only narrows what's currently displayed.
+      const today = getTodayIso();
+      rows = rows.filter((row) => {
+        const date = String(row.values.event_date ?? "");
+        return date !== "" && date > today;
+      });
+    }
+
     if (sortOrder === "newest" || sortOrder === "oldest") {
       const sign = sortOrder === "newest" ? -1 : 1;
       rows = [...rows].sort((a, b) => sign * (new Date(a.createdAt || 0) - new Date(b.createdAt || 0)));
+    } else if (sortOrder === "eventDateAsc" || sortOrder === "eventDateDesc") {
+      const sign = sortOrder === "eventDateAsc" ? 1 : -1;
+      rows = [...rows].sort((a, b) => {
+        const dateA = String(a.values.event_date ?? "");
+        const dateB = String(b.values.event_date ?? "");
+        // Rows with no event date always sink to the bottom, in either direction.
+        if (!dateA && !dateB) return 0;
+        if (!dateA) return 1;
+        if (!dateB) return -1;
+        return sign * dateA.localeCompare(dateB);
+      });
     }
 
-    return rows;
-  }, [searchText, workspace.rows, workspace.columns, filters, sortOrder]);
+    return [...draftRows, ...rows];
+  }, [searchText, workspace.rows, workspace.columns, filters, upcomingOnly, sortOrder]);
+
+  // True only when there's an unsaved edit to an already-saved row, or a
+  // brand-new row that now has real content — NOT when the only unsaved
+  // change is a still-empty freshly-added row (that one just vanishes on
+  // refresh with no warning needed).
+  const hasMeaningfulUnsavedChanges = useMemo(() => {
+    return workspace.rows.some((row) => {
+      const savedSignature = lastSavedRowsSnapshotRef.current.get(row.id);
+      if (savedSignature === undefined) return !isRowBlank(row, workspace.columns);
+      return rowSignature(row) !== savedSignature;
+    });
+  }, [workspace.rows, workspace.columns]);
 
   const activeFilterCount = useMemo(
     () =>
@@ -943,6 +1051,7 @@ export default function ManagementPage() {
         };
         cachedWorkspace = nextState;
         cachedEmployeeDirectory = employees;
+        lastSavedRowsSnapshotRef.current = new Map(nextState.rows.map((row) => [row.id, rowSignature(row)]));
         setWorkspace(nextState);
         setEmployeeDirectory(employees);
       } catch (error) {
@@ -1033,6 +1142,18 @@ export default function ManagementPage() {
     return () => window.clearTimeout(timeout);
   }, [notice]);
 
+  // Native "leave site?" confirmation — only when a refresh/close would
+  // actually lose real client data, not just a still-empty freshly-added row.
+  useEffect(() => {
+    function handleBeforeUnload(event) {
+      if (!hasMeaningfulUnsavedChanges) return;
+      event.preventDefault();
+      event.returnValue = "";
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasMeaningfulUnsavedChanges]);
+
   useEffect(() => {
     if (!employee) return undefined;
 
@@ -1077,7 +1198,7 @@ export default function ManagementPage() {
       ...current,
       rows: [...current.rows, createEmptyRow(current.columns, current.rows.length + 1)],
     }));
-    setNotice({ type: "success", message: "New row added at the bottom of the sheet." });
+    setNotice({ type: "success", message: "New row added at the top — fill it in and click Save Changes." });
   }
 
   async function deleteRow(rowId) {
@@ -1117,6 +1238,20 @@ export default function ManagementPage() {
     }));
   }
 
+  // Toggled via the badge button beside the Event Date cell — marks a client
+  // as already booked with another event management company. Applies
+  // immediately to local state (row highlight shows right away) but is only
+  // persisted to the database once Save Changes is clicked, same as any
+  // other cell edit.
+  function toggleAlreadyBooked(rowId) {
+    setWorkspace((current) => ({
+      ...current,
+      rows: current.rows.map((row) =>
+        row.id === rowId ? { ...row, alreadyBooked: !row.alreadyBooked } : row,
+      ),
+    }));
+  }
+
   function addColumn(column) {
     setWorkspace((current) => ({
       ...current,
@@ -1152,6 +1287,7 @@ export default function ManagementPage() {
 
       await saveWorkspace(workspaceToSave, employee.id);
       setWorkspace(workspaceToSave);
+      lastSavedRowsSnapshotRef.current = new Map(rows.map((row) => [row.id, rowSignature(row)]));
       setHasUnsavedChanges(false);
       setNotice({
         type: "success",
@@ -1275,18 +1411,21 @@ export default function ManagementPage() {
 
   if (isLoadingWorkspace) {
     return (
+      <EmployeeLayout>
       <div className="grid min-h-screen place-items-center bg-[#ffffff] text-black">
         <div className="animate-[fadeInUp_0.4s_ease-out] text-center">
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-[#d6d6d6] border-t-black" />
           <p className="mt-4 font-black">Loading shared management data...</p>
         </div>
       </div>
+      </EmployeeLayout>
     );
   }
 
   /* ─── Render ─── */
 
   return (
+    <EmployeeLayout>
     <div className="min-h-screen bg-[#ffffff] text-black">
       {/* ── Global keyframes ── */}
       <style>{`
@@ -1314,6 +1453,36 @@ export default function ManagementPage() {
           0% { background-position: -200% 0; }
           100% { background-position: 200% 0; }
         }
+        @keyframes heroDrift {
+          0%, 100% { transform: translate3d(0,0,0) scale(1); opacity: .5; }
+          33% { transform: translate3d(8%,-10%,0) scale(1.25); opacity: .8; }
+          66% { transform: translate3d(-9%,8%,0) scale(.85); opacity: .4; }
+        }
+        @keyframes sheen {
+          from { transform: translateX(-120%) skewX(-18deg); }
+          to { transform: translateX(320%) skewX(-18deg); }
+        }
+        .animate-hero-drift { animation: heroDrift 16s ease-in-out infinite; }
+        .btn-sheen { position: relative; overflow: hidden; }
+        .btn-sheen::after {
+          content: "";
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          width: 45%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent);
+          transform: translateX(-120%) skewX(-18deg);
+          pointer-events: none;
+        }
+        .btn-sheen:hover::after { animation: sheen .9s ease-out; }
+        .hero-dots {
+          background-image: radial-gradient(rgba(255,255,255,.16) 1px, transparent 1px);
+          background-size: 22px 22px;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .animate-hero-drift { animation: none !important; }
+          .btn-sheen:hover::after { animation: none !important; }
+        }
       `}</style>
 
       {showAddColumn && <AddColumnModal onClose={() => setShowAddColumn(false)} onAdd={addColumn} />}
@@ -1338,19 +1507,68 @@ export default function ManagementPage() {
       />
 
       {/* ─── Header ─── */}
-      <header className="sticky top-0 z-40 border-b border-[#d6d6d6]/50 bg-white/95 backdrop-blur-xl transition-all duration-300">
+      <header className="sticky top-0 z-40 border-b border-[#d6d6d6]/50 bg-white/85 backdrop-blur-xl transition-all duration-300 animate-[fadeInDown_0.5s_ease-out]">
         <div className="flex min-h-18 items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-4">
-            <img src={mmeLogo} alt="Make My Event - Management Workspace" className="h-27 w-auto shrink-0 object-contain sm:h-28" />
+            <img src={mmeLogo} alt="Make My Event - Management Workspace" className="h-27 w-auto shrink-0 object-contain transition-transform duration-300 hover:scale-105 sm:h-28" />
+          </div>
+
+          {/* ── Today's activity widget (Meetings vs Calls, per stat) ── */}
+          <div className="hidden flex-1 items-center justify-center gap-3 lg:flex">
+            <div className="flex items-stretch gap-3 rounded-2xl border border-[#d6d6d6]/60 bg-white px-4 py-2.5 shadow-sm shadow-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:shadow-black/10">
+              <div className="flex items-center gap-2.5 pr-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 transition-transform duration-300 group-hover:scale-110">
+                  <Clock size={18} />
+                </div>
+                <div className="leading-tight">
+                  <p className="text-[10px] font-black uppercase tracking-[0.15em] text-black/40">Due Today</p>
+                  <div className="mt-1 flex items-center gap-2.5">
+                    <span className="inline-flex items-center gap-1 text-xs font-black text-black">
+                      <CalendarClock size={13} className="text-amber-500" />
+                      {todaySummary ? todaySummary.dueMeetings : <span className="inline-block h-3 w-3 animate-pulse rounded bg-black/10" />}
+                      <span className="font-semibold text-black/40">Meetings</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-xs font-black text-black">
+                      <Phone size={13} className="text-amber-500" />
+                      {todaySummary ? todaySummary.dueCalls : <span className="inline-block h-3 w-3 animate-pulse rounded bg-black/10" />}
+                      <span className="font-semibold text-black/40">Calls</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="w-px bg-[#d6d6d6]/70" />
+
+              <div className="flex items-center gap-2.5 pl-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 transition-transform duration-300 group-hover:scale-110">
+                  <CheckCircle2 size={18} />
+                </div>
+                <div className="leading-tight">
+                  <p className="text-[10px] font-black uppercase tracking-[0.15em] text-black/40">Completed Today</p>
+                  <div className="mt-1 flex items-center gap-2.5">
+                    <span className="inline-flex items-center gap-1 text-xs font-black text-black">
+                      <CalendarClock size={13} className="text-emerald-500" />
+                      {todaySummary ? todaySummary.completedMeetings : <span className="inline-block h-3 w-3 animate-pulse rounded bg-black/10" />}
+                      <span className="font-semibold text-black/40">Meetings</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-xs font-black text-black">
+                      <Phone size={13} className="text-emerald-500" />
+                      {todaySummary ? todaySummary.completedCalls : <span className="inline-block h-3 w-3 animate-pulse rounded bg-black/10" />}
+                      <span className="font-semibold text-black/40">Calls</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={() => handleSaveChanges()}
               disabled={!hasUnsavedChanges || isSaving || !employee?.id}
-              className={`hidden items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-all duration-200 md:flex ${
+              className={`btn-sheen hidden items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-all duration-200 md:flex ${
                 hasUnsavedChanges && !isSaving
-                  ? "border-black bg-black text-white shadow-md shadow-black/20 hover:bg-[#222222] hover:shadow-lg hover:shadow-black/30 active:scale-[0.97] cursor-pointer"
+                  ? "border-black bg-black text-white shadow-md shadow-black/20 hover:-translate-y-0.5 hover:bg-[#222222] hover:shadow-lg hover:shadow-black/30 active:scale-[0.97] cursor-pointer"
                   : "pointer-events-none border-[#d6d6d6]/60 bg-[#ffffff] text-black/40 opacity-60 cursor-not-allowed"
               }`}
             >
@@ -1360,7 +1578,7 @@ export default function ManagementPage() {
               {isSaving ? "Saving..." : hasUnsavedChanges ? "Save Changes" : "Saved"}
             </button>
 
-            <button onClick={requestLogout} title="Logout" className="group flex items-center gap-2 rounded-2xl border border-[#d6d6d6]/70 bg-white px-3 py-2.5 text-left transition-all duration-200 hover:bg-red-50 hover:border-red-200 hover:shadow-md hover:shadow-red-100/50 sm:px-4">
+            <button onClick={requestLogout} title="Logout" className="group flex items-center gap-2 rounded-2xl border border-[#d6d6d6]/70 bg-white px-3 py-2.5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-red-200 hover:bg-red-50 hover:shadow-md hover:shadow-red-100/50 sm:px-4">
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#f4f4f4] text-black transition-colors duration-200 group-hover:bg-red-100 group-hover:text-red-500"><UserRound size={16} /></div>
               <div className="hidden sm:block">
                 <p className="max-w-36 truncate text-xs font-black text-black">{employee?.fullName || "Employee"}</p>
@@ -1375,36 +1593,54 @@ export default function ManagementPage() {
       {/* ─── Main ─── */}
       <main className="px-3 py-5 sm:px-5 lg:px-7">
         <section className="mx-auto max-w-[1800px] animate-[fadeInUp_0.4s_ease-out]">
-          <div className="mb-5 flex flex-col justify-between gap-4 xl:flex-row xl:items-end">
-            <div>
-              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-[#333333]">
-                
-              </div>
-              <h1 className="mt-2 text-2xl font-black text-black sm:text-3xl">{workspace.name}</h1>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-black/60">
-                
-              </p>
+          <div className="relative mb-6 overflow-hidden rounded-[28px] bg-[#0B0B0F] p-6 text-white shadow-[0_30px_80px_-24px_rgba(0,0,0,.55)] ring-1 ring-white/10 sm:p-8">
+            <div className="pointer-events-none absolute inset-0 overflow-hidden">
+              <div className="animate-hero-drift absolute -left-24 -top-32 h-80 w-80 rounded-full bg-violet-600/40 blur-[100px]" />
+              <div
+                className="animate-hero-drift absolute -bottom-32 right-0 h-80 w-80 rounded-full bg-cyan-500/25 blur-[110px]"
+                style={{ animationDelay: "-6s" }}
+              />
+              <div className="hero-dots absolute inset-0 opacity-30" />
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Link to="/calendar" className="inline-flex items-center gap-2 rounded-xl bg-[#301934] px-4 py-2.5 text-sm font-black text-white shadow-md shadow-[#301934]/30 transition-all duration-200 hover:brightness-125 hover:shadow-lg hover:shadow-[#301934]/40 active:scale-[0.97]">
-                <CalendarDays size={17} /> Calendar
-              </Link>
+            <div className="relative flex flex-col justify-between gap-5 xl:flex-row xl:items-end">
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">Employee Workspace</p>
+                <h1 className="mt-2 truncate text-2xl font-black tracking-tight sm:text-3xl">{workspace.name}</h1>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-white/60">
+                  Every client, booking and follow-up call, kept in one shared, live-updating sheet.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2.5">
+                <Link
+                  to="/accounts"
+                  className="group inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-black text-white ring-1 ring-white/15 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/20 hover:shadow-lg"
+                >
+                  <Wallet size={17} className="transition-transform duration-300 group-hover:scale-110" /> Accounts
+                </Link>
+                <Link
+                  to="/calendar"
+                  className="group inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-black text-white ring-1 ring-white/15 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/20 hover:shadow-lg"
+                >
+                  <CalendarDays size={17} className="transition-transform duration-300 group-hover:scale-110" /> Calendar
+                </Link>
+              </div>
             </div>
           </div>
 
           {/* ─── Sheet Container ─── */}
           <div className="overflow-hidden rounded-[24px] border border-[#d6d6d6]/60 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)] transition-shadow duration-300 hover:shadow-[0_20px_60px_rgba(0,0,0,0.12)]">
             {/* Toolbar */}
-            <div className="flex flex-col gap-3 border-b border-[#d6d6d6]/50 bg-white p-3.5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-3 border-b border-[#d6d6d6]/50 bg-white p-3.5 animate-[fadeIn_0.5s_ease-out] lg:flex-row lg:items-center lg:justify-between">
               <div className="flex flex-wrap gap-2">
-                <button onClick={addRow} className="inline-flex items-center gap-2 rounded-xl bg-black px-4 py-2.5 text-sm font-black text-white shadow-md shadow-black/15 transition-all duration-200 hover:bg-[#222222] hover:shadow-lg hover:shadow-black/25 active:scale-[0.97]">
+                <button onClick={addRow} className="btn-sheen inline-flex items-center gap-2 rounded-xl bg-black px-4 py-2.5 text-sm font-black text-white shadow-md shadow-black/15 transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#222222] hover:shadow-lg hover:shadow-black/25 active:scale-[0.97]">
                   <Plus size={17} /> Add row
                 </button>
-                <button onClick={() => setShowAddColumn(true)} className="inline-flex items-center gap-2 rounded-xl bg-[#36454F] px-4 py-2.5 text-sm font-black text-white shadow-md shadow-[#36454F]/30 transition-all duration-200 hover:brightness-110 hover:shadow-lg hover:shadow-[#36454F]/40 active:scale-[0.97]">
+                <button onClick={() => setShowAddColumn(true)} className="btn-sheen inline-flex items-center gap-2 rounded-xl bg-[#36454F] px-4 py-2.5 text-sm font-black text-white shadow-md shadow-[#36454F]/30 transition-all duration-200 hover:-translate-y-0.5 hover:brightness-110 hover:shadow-lg hover:shadow-[#36454F]/40 active:scale-[0.97]">
                   <Columns3 size={17} /> Add column
                 </button>
-                <button disabled={isImporting} onClick={() => fileInputRef.current?.click()} className="inline-flex items-center gap-2 rounded-xl bg-[#023020] px-4 py-2.5 text-sm font-black text-white shadow-md shadow-[#023020]/30 transition-all duration-200 hover:brightness-110 hover:shadow-lg hover:shadow-[#023020]/40 active:scale-[0.97] disabled:opacity-60 disabled:hover:shadow-none">
+                <button disabled={isImporting} onClick={() => fileInputRef.current?.click()} className="btn-sheen inline-flex items-center gap-2 rounded-xl bg-[#023020] px-4 py-2.5 text-sm font-black text-white shadow-md shadow-[#023020]/30 transition-all duration-200 hover:-translate-y-0.5 hover:brightness-110 hover:shadow-lg hover:shadow-[#023020]/40 active:scale-[0.97] disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-none">
                   {isImporting ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <FileSpreadsheet size={17} />}
                   {isImporting ? "Reading file..." : "Upload Excel"}
                 </button>
@@ -1413,7 +1649,7 @@ export default function ManagementPage() {
                 <div className="relative" ref={filterDropdownRef}>
                   <button
                     onClick={() => { setShowFilters((v) => !v); setHoveredSection(null); }}
-                    className="inline-flex items-center gap-2 rounded-xl bg-[#191970] px-4 py-2.5 text-sm font-black text-white shadow-md shadow-[#191970]/30 transition-all duration-200 hover:brightness-110 hover:shadow-lg hover:shadow-[#191970]/40 active:scale-[0.97]"
+                    className="btn-sheen inline-flex items-center gap-2 rounded-xl bg-[#191970] px-4 py-2.5 text-sm font-black text-white shadow-md shadow-[#191970]/30 transition-all duration-200 hover:-translate-y-0.5 hover:brightness-110 hover:shadow-lg hover:shadow-[#191970]/40 active:scale-[0.97]"
                   >
                     <SlidersHorizontal size={17} />
                     Filters
@@ -1478,7 +1714,7 @@ export default function ManagementPage() {
 
                         {hoveredSection === "date" && (
                           <div className="animate-[fadeIn_0.15s_ease-out]">
-                            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-[#333333]">Date Range (Meeting)</p>
+                            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-[#333333]">Date Range (Event Date)</p>
                             <div className="flex flex-col gap-3">
                               <div>
                                 <label className="mb-1 block text-xs font-bold text-black/60">From</label>
@@ -1532,12 +1768,14 @@ export default function ManagementPage() {
 
                         {hoveredSection === "sort" && (
                           <div className="animate-[fadeIn_0.15s_ease-out]">
-                            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-[#333333]">Sort by upload time</p>
+                            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-[#333333]">Sort By</p>
                             <div className="space-y-2">
                               {[
                                 { value: "default", label: "Default order" },
                                 { value: "newest",   label: "Newest upload first" },
                                 { value: "oldest",   label: "Oldest upload first" },
+                                { value: "eventDateAsc",  label: "Event date (ascending)" },
+                                { value: "eventDateDesc", label: "Event date (descending)" },
                               ].map((opt) => (
                                 <label key={opt.value} className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2 transition-colors duration-150 hover:bg-[#f4f4f4]/30">
                                   <input
@@ -1557,6 +1795,19 @@ export default function ManagementPage() {
                     </div>
                   )}
                 </div>
+
+                <button
+                  onClick={() => setUpcomingOnly((v) => !v)}
+                  title={upcomingOnly ? "Showing only upcoming events — click to show all clients again" : "Hide clients whose event date is today or already passed"}
+                  className={`btn-sheen inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black text-white shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:brightness-110 hover:shadow-lg active:scale-[0.97] ${
+                    upcomingOnly
+                      ? "bg-[#0b6e4f] shadow-[#0b6e4f]/30 hover:shadow-[#0b6e4f]/40"
+                      : "bg-[#c2410c] shadow-[#c2410c]/30 hover:shadow-[#c2410c]/40"
+                  }`}
+                >
+                  <CalendarClock size={17} />
+                  {upcomingOnly ? "Upcoming only" : "Show upcoming only"}
+                </button>
               </div>
 
               <div className="flex items-center gap-3">
@@ -1567,7 +1818,7 @@ export default function ManagementPage() {
                 </p>
                 <div className="relative min-w-0 flex-1 lg:w-72 lg:flex-none">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#333333]" size={17} />
-                  <input value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Search all cells..." className="w-full rounded-xl border border-[#d6d6d6]/70 bg-[#ffffff] py-2.5 pl-10 pr-9 text-sm outline-none transition-all duration-200 focus:border-[#333333] focus:ring-4 focus:ring-[#d6d6d6]/20 focus:shadow-md" />
+                  <input value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Search all cells..." className="w-full rounded-xl border border-[#d6d6d6]/70 bg-[#ffffff] py-2.5 pl-10 pr-9 text-sm outline-none transition-all duration-200 focus:border-[#333333] focus:shadow-md focus:ring-4 focus:ring-[#d6d6d6]/20" />
                   {searchText && <button onClick={() => setSearchText("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-black/40 transition-colors duration-150 hover:text-black"><X size={15} /></button>}
                 </div>
               </div>
@@ -1603,17 +1854,41 @@ export default function ManagementPage() {
                   <tbody>
                     {filteredRows.map((row, index) => {
                       const rowH = rowHeights[row.id];
+                      const isAlreadyBooked = Boolean(row.alreadyBooked);
+                      const isBookedFromMme = Boolean(row.bookedFromMme);
+                      const stickyBg = isBookedFromMme
+                        ? "bg-emerald-100 group-hover:bg-emerald-300/80"
+                        : isAlreadyBooked
+                        ? "bg-rose-100 group-hover:bg-rose-300/80"
+                        : "bg-[#ffffff] group-hover:bg-[#f8f8f8]";
+                      const cellBg = isBookedFromMme
+                        ? "bg-emerald-100/80 group-hover:bg-emerald-200/70"
+                        : isAlreadyBooked
+                        ? "bg-rose-100/80 group-hover:bg-rose-200/70"
+                        : "bg-white group-hover:bg-[#fafafa]";
+                      const cellBorder = isBookedFromMme
+                        ? "border-emerald-300/70"
+                        : isAlreadyBooked
+                        ? "border-rose-300/70"
+                        : "border-[#d6d6d6]/45";
                       return (
                         <tr
                           key={row.id}
                           className="group"
+                          title={
+                            isBookedFromMme
+                              ? "This client has confirmed & finalized their event with MME"
+                              : isAlreadyBooked
+                              ? "This client has already booked with another event management company"
+                              : undefined
+                          }
                           style={{
                             ...(rowH ? { height: `${rowH}px` } : {}),
                             animation: `fadeInUp 0.3s ease-out ${Math.min(index * 0.03, 0.5)}s both`,
                           }}
                         >
                           <td
-                            className="sticky left-0 z-10 border-b border-r border-[#d6d6d6]/50 bg-[#ffffff] text-center text-xs font-black text-black/45 transition-colors duration-150 group-hover:bg-[#f8f8f8]"
+                            className={`sticky left-0 z-10 border-b border-r ${cellBorder} text-center text-xs font-black text-black/45 transition-colors duration-150 ${stickyBg}`}
                             style={rowH ? { height: `${rowH}px` } : undefined}
                           >
                             <div className="relative flex w-full min-h-11 items-center justify-center px-2" style={rowH ? { height: `${rowH}px` } : undefined}>
@@ -1628,9 +1903,36 @@ export default function ManagementPage() {
                             <td
                               key={column.id}
                               style={{ width: column.width, minWidth: column.width, ...(rowH ? { height: `${rowH}px` } : {}) }}
-                              className="border-b border-r border-[#d6d6d6]/45 bg-white align-top transition-colors duration-150 group-hover:bg-[#fafafa]"
+                              className={`border-b border-r ${cellBorder} align-top transition-colors duration-150 ${cellBg}`}
                             >
-                              {column.type === "meeting_manager" ? (
+                              {column.id === "event_date" ? (
+                                <div className="flex h-full min-h-11 items-stretch">
+                                  <div className="min-w-0 flex-1">
+                                    <CellEditor
+                                      column={column}
+                                      value={row.values[column.id]}
+                                      onChange={(value) => updateCell(row.id, column.id, value)}
+                                      employeeNames={employeeNames}
+                                    />
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleAlreadyBooked(row.id)}
+                                    title={
+                                      isAlreadyBooked
+                                        ? "Already booked with another event management company — click to unmark"
+                                        : "Mark as already booked with another event management company"
+                                    }
+                                    className={`my-auto mr-1.5 flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black transition-all duration-200 active:scale-90 ${
+                                      isAlreadyBooked
+                                        ? "bg-rose-500 text-white shadow-sm shadow-rose-500/30 hover:bg-rose-600"
+                                        : "bg-[#f4f4f4] text-black/35 hover:bg-rose-50 hover:text-rose-500"
+                                    }`}
+                                  >
+                                    <BadgeAlert size={13} />
+                                  </button>
+                                </div>
+                              ) : column.type === "meeting_manager" ? (
                                 <div className="flex h-full min-h-11 items-center justify-center gap-2 p-1.5">
                                   <button
                                     type="button"
@@ -1695,7 +1997,7 @@ export default function ManagementPage() {
                             </td>
                           ))}
                           <td
-                            className="sticky right-0 z-10 border-b border-l border-[#d6d6d6]/50 bg-white px-1 text-center transition-colors duration-150 group-hover:bg-[#fafafa]"
+                            className={`sticky right-0 z-10 border-b border-l ${cellBorder} px-1 text-center transition-colors duration-150 ${cellBg}`}
                             style={rowH ? { height: `${rowH}px` } : undefined}
                           >
                             <div className="flex min-h-11 items-center justify-center" style={rowH ? { height: `${rowH}px` } : undefined}>
@@ -1724,6 +2026,11 @@ export default function ManagementPage() {
                             Clear filters ({activeFilterCount})
                           </button>
                         )}
+                        {upcomingOnly && (
+                          <button onClick={() => setUpcomingOnly(false)} className="text-sm font-black text-[#333333] transition-colors duration-150 hover:text-black">
+                            Show all clients
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1732,7 +2039,7 @@ export default function ManagementPage() {
             )}
 
             {/* Footer */}
-            <div className="flex flex-col justify-between gap-2 border-t border-[#d6d6d6]/50 bg-[#ffffff] px-4 py-3 text-xs text-black/50 sm:flex-row sm:items-center">
+            <div className="flex flex-col justify-between gap-2 border-t border-[#d6d6d6]/50 bg-[#fafafa] px-4 py-3 text-xs text-black/50 transition-colors duration-300 sm:flex-row sm:items-center">
               <p>Drag column edges to resize width · Drag row edges to resize height · Press <strong>Save Changes</strong> to persist edits to the database.</p>
               <p className="font-bold">Supported imports: .xlsx and .csv</p>
             </div>
@@ -1845,5 +2152,6 @@ export default function ManagementPage() {
         </button>
       )}
     </div>
+    </EmployeeLayout>
   );
 }
