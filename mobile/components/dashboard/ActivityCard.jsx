@@ -22,13 +22,13 @@ export default function ActivityCard({ event, onPress }) {
   return (
     <Container style={styles.card} onPress={onPress}>
       <View style={[styles.badge, { backgroundColor: color }]}>
-        <Text style={[styles.badgeText, { fontSize: moderateScale(12) }]}>{label}</Text>
+        <Text style={[styles.badgeText, { fontSize: moderateScale(12) }]} numberOfLines={1}>{label}</Text>
       </View>
       <View style={styles.info}>
-        <Text style={[styles.clientName, { fontSize: moderateScale(15) }]}>
+        <Text style={[styles.clientName, { fontSize: moderateScale(15) }]} numberOfLines={1}>
           {event.clientName || 'Unknown client'}
         </Text>
-        <Text style={[styles.time, { fontSize: moderateScale(13) }]}>
+        <Text style={[styles.time, { fontSize: moderateScale(13) }]} numberOfLines={1}>
           {event.date}{event.time ? ` \u00b7 ${event.time}` : ''}
         </Text>
       </View>
@@ -46,6 +46,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   badge: {
+    flexShrink: 0,
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -56,6 +57,7 @@ const styles = StyleSheet.create({
   },
   info: {
     flex: 1,
+    minWidth: 0,
     gap: 2,
   },
   clientName: {

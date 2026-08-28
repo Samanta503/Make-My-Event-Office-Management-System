@@ -131,7 +131,7 @@ export default function CallsScreen() {
   }
 
   return (
-    <ScreenContainer>
+    <ScreenContainer avoidKeyboard>
       <Stack.Screen options={{ headerShown: true, title: data?.clientName || 'Calls' }} />
 
       {!showCreateForm ? (

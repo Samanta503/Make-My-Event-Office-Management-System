@@ -82,7 +82,7 @@ export default function CreateClientScreen() {
   }
 
   return (
-    <ScreenContainer scroll>
+    <ScreenContainer scroll avoidKeyboard>
       <Stack.Screen options={{ headerShown: true, title: 'Create New Client' }} />
 
       <View style={styles.form}>

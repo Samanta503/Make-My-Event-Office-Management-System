@@ -21,12 +21,22 @@ const { width: INITIAL_WIDTH, height: INITIAL_HEIGHT } = Dimensions.get('window'
 export const SCREEN_WIDTH = INITIAL_WIDTH;
 export const SCREEN_HEIGHT = INITIAL_HEIGHT;
 
+// ── Custom width-based scaling is DISABLED (2026-08-28) ──
+// Confirmed via device testing (Android Display Size 350/449/550 +
+// a diagnostic overlay) that the width-based moderateScale/scale formula
+// itself was the cause of text/cards getting clipped at non-default
+// display densities — NOT ScreenContainer, NOT Expo Go, NOT individual
+// component flexbox styles. Flexbox (flex/percent/gap) already makes this
+// app adapt correctly across phone sizes on its own; scaling font/spacing
+// by width on top of that pushed row layouts (badges, header buttons,
+// summary cards) past the available width at certain densities. Kept as a
+// no-op passthrough rather than deleted so call sites don't need touching.
 function scaleFor(width, size) {
-  return (width / GUIDELINE_BASE_WIDTH) * size;
+  return size;
 }
 
 function moderateScaleFor(width, size, factor = 0.5) {
-  return size + (scaleFor(width, size) - size) * factor;
+  return size;
 }
 
 /** Static helpers for use outside components (e.g. StyleSheet.create at module scope). */

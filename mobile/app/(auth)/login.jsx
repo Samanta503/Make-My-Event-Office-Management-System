@@ -37,7 +37,7 @@ export default function LoginScreen() {
   }
 
   return (
-    <ScreenContainer style={styles.container}>
+    <ScreenContainer scroll avoidKeyboard style={styles.container}>
       <Text style={styles.title}>Make My Event</Text>
       <Text style={styles.subtitle}>Employee sign in</Text>
 

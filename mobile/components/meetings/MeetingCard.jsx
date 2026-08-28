@@ -340,6 +340,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Brand.purple,
     flexShrink: 1,
+    minWidth: 0,
   },
   meta: {
     fontSize: moderateScale(12),

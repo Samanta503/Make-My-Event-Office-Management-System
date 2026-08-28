@@ -31,11 +31,13 @@ export default function DashboardScreen() {
       scroll
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}>
       <View style={styles.header}>
-        <Text style={[styles.greeting, { fontSize: moderateScale(22) }]}>
+        <Text
+          style={[styles.greeting, { fontSize: moderateScale(22) }]}
+          numberOfLines={1}>
           Hello, {employee?.fullName?.split(' ')[0] || 'there'}
         </Text>
-        <Pressable onPress={logout}>
-          <Text style={styles.logout}>Log Out</Text>
+        <Pressable onPress={logout} style={styles.logoutButton}>
+          <Text style={styles.logout} numberOfLines={1}>Log Out</Text>
         </Pressable>
       </View>
 
@@ -99,10 +101,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
+    gap: 12,
   },
   greeting: {
+    flexShrink: 1,
+    minWidth: 0,
     fontWeight: '700',
     color: Brand.purple,
+  },
+  logoutButton: {
+    flexShrink: 0,
   },
   logout: {
     color: Brand.purple,

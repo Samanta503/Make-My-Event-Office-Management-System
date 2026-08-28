@@ -150,7 +150,7 @@ export default function MeetingsScreen() {
   }
 
   return (
-    <ScreenContainer>
+    <ScreenContainer avoidKeyboard>
       <Stack.Screen options={{ headerShown: true, title: data?.clientName || 'Meetings' }} />
 
       {!showCreateForm ? (
