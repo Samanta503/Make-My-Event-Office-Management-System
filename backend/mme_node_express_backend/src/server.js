@@ -18,6 +18,7 @@ import adminRoutes from "./routes/admin.js";
 import adminActivityRoutes from "./routes/adminActivity.js";
 import adminCalendarRoutes from "./routes/adminCalendar.js";
 import adminDashboardRoutes from "./routes/adminDashboard.js";
+import adminAttendanceRoutes from "./routes/adminAttendance.js";
 import meetingRoutes, { uploadsRootDirectory } from "./routes/meetings.js";
 import callRoutes from "./routes/calls.js";
 import mobileAuthRoutes from "./routes/mobileAuth.js";
@@ -89,6 +90,25 @@ const {
   default: accountsRoutes,
   uploadsRootDirectory: accountsUploadsRootDirectory,
 } = require(path.join(accountsBackendDirectory, "routes/accounts.js"));
+
+/*
+|--------------------------------------------------------------------------
+| Resolve the Attendance module
+|--------------------------------------------------------------------------
+|
+| Same idea as the Accounts module above, but nested one level deeper
+| (mobile/Attendance/backend instead of a repo-root sibling) since this
+| module is dedicated to the mobile app. ATTENDANCE_BACKEND_DIR overrides
+| the resolved path for deployment, same as ACCOUNTS_BACKEND_DIR.
+*/
+
+const attendanceBackendDirectory = process.env.ATTENDANCE_BACKEND_DIR
+  ? path.resolve(process.env.ATTENDANCE_BACKEND_DIR)
+  : path.resolve(__dirname, "../../../mobile/Attendance/backend");
+
+const { default: attendanceRoutes } = require(
+  path.join(attendanceBackendDirectory, "routes/attendance.js"),
+);
 
 /*
 |--------------------------------------------------------------------------
@@ -185,9 +205,11 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/admin", adminActivityRoutes);
 app.use("/api/admin", adminCalendarRoutes);
 app.use("/api/admin", adminDashboardRoutes);
+app.use("/api/admin", adminAttendanceRoutes);
 app.use("/api/meetings", attachBearerToken, requireEmployee, meetingRoutes);
 app.use("/api/calls", attachBearerToken, requireEmployee, callRoutes);
 app.use("/api/accounts", attachBearerToken, requireEmployee, accountsRoutes);
+app.use("/api/attendance", attachBearerToken, requireEmployee, attendanceRoutes);
 
 /*
 |--------------------------------------------------------------------------
