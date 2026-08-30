@@ -6,4 +6,8 @@ export const queryKeys = {
   employees: ["employees"],
   attendanceToday: ["attendance", "today"],
   attendanceHistory: ["attendance", "history"],
+  accountsSummary: ["accounts", "summary"],
+  accountsBookedEvents: ["accounts", "bookedEvents"],
+  accountsVendors: ["accounts", "vendors"],
+  accountsVendorProfile: (vendorId) => ["accounts", "vendors", vendorId],
 };

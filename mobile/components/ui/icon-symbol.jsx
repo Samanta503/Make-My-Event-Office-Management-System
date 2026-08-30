@@ -12,6 +12,7 @@ const MAPPING = {
   'paperplane.fill': 'send',
   'person.2.fill': 'people',
   'clock.fill': 'access-time',
+  'wallet.pass.fill': 'account-balance-wallet',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
 };

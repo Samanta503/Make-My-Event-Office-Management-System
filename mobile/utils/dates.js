@@ -28,6 +28,15 @@ export function formatDisplayDate(dateStr) {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+// Backend timestamps come back as "YYYY-MM-DD HH:MM:SS" — used by the
+// Accounts module's history feed for "submitted at" display.
+export function formatDisplayDateTime(value) {
+  if (!value) return "";
+  const [datePart, timePart] = String(value).split(" ");
+  const formattedDate = formatDisplayDate(datePart);
+  return timePart ? `${formattedDate} ${timePart}` : formattedDate;
+}
+
 // Backend times are plain "HH:MM" 24-hour strings — this only formats
 // display, it does not shift timezones.
 export function formatDisplayTime(timeStr) {
