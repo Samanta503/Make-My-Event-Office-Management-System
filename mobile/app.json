@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "mobile",
+    "name": "MME-Office Management System",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/mme-icon-square.png",
     "scheme": "mobile",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -18,9 +18,8 @@
     "android": {
       "package": "com.makemyevent.mobile",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/images/mme-icon-adaptive.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
@@ -35,8 +34,8 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "image": "./assets/images/mme-splash-icon.png",
+          "imageWidth": 220,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
           "dark": {
