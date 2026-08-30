@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import AppButton from '@/components/common/AppButton';
 import AppInput from '@/components/common/AppInput';
@@ -34,9 +35,9 @@ function MeetingItemEditRow({ item, value, onChange, onRequestDelete }) {
   return (
     <View style={styles.itemEditRow}>
       <View style={styles.itemEditHeader}>
-        <Text style={styles.itemEditLabel}>{itemLabel(item)}</Text>
-        <Pressable onPress={() => onRequestDelete(item)}>
-          <Text style={styles.deleteLink}>Delete</Text>
+        <Text style={styles.itemEditLabel} numberOfLines={1}>{itemLabel(item)}</Text>
+        <Pressable onPress={() => onRequestDelete(item)} style={styles.itemDeleteButton} hitSlop={6}>
+          <MaterialIcons name="delete-outline" size={15} color="#d32f2f" />
         </Pressable>
       </View>
 
@@ -216,20 +217,43 @@ export default function MeetingCard({
   return (
     <View style={styles.card}>
       <View style={styles.headerRow}>
-        <Text style={styles.date}>{meeting.meetingDatetime}</Text>
+        <View style={styles.iconBadge}>
+          <MaterialIcons name="groups" size={16} color={Brand.plum} />
+        </View>
+        <Text style={styles.date} numberOfLines={1}>{meeting.meetingDatetime}</Text>
       </View>
 
-      {meeting.createdByName ? <Text style={styles.meta}>Logged by {meeting.createdByName}</Text> : null}
-      {meeting.assignedByEmployeeName ? (
-        <Text style={styles.meta}>Assigned by {meeting.assignedByEmployeeName}</Text>
+      {meeting.createdByName || meeting.assignedByEmployeeName ? (
+        <View style={styles.metaRow}>
+          {meeting.createdByName ? (
+            <View style={styles.metaItem}>
+              <MaterialIcons name="person" size={12} color={Brand.mauve} />
+              <Text style={styles.meta}>Logged by {meeting.createdByName}</Text>
+            </View>
+          ) : null}
+          {meeting.assignedByEmployeeName ? (
+            <View style={styles.metaItem}>
+              <MaterialIcons name="assignment-ind" size={12} color={Brand.mauve} />
+              <Text style={styles.meta}>Assigned by {meeting.assignedByEmployeeName}</Text>
+            </View>
+          ) : null}
+        </View>
       ) : null}
 
       <View style={styles.sectionHeader}>
+        <MaterialIcons name="checklist" size={13} color={Brand.mauve} />
         <Text style={styles.sectionLabel}>Requirements</Text>
+        {meeting.items.length > 0 ? (
+          <View style={styles.sectionCountPill}>
+            <Text style={styles.sectionCountText}>{meeting.items.length}</Text>
+          </View>
+        ) : null}
       </View>
 
       {meeting.items.length === 0 && !isEditing ? (
-        <Text style={styles.emptyItems}>No requirements added.</Text>
+        <View style={styles.emptyItemsBox}>
+          <Text style={styles.emptyItems}>No requirements added.</Text>
+        </View>
       ) : null}
 
       {isEditing
@@ -255,19 +279,23 @@ export default function MeetingCard({
           />
         ) : (
           <Pressable style={styles.selectItemButton} onPress={() => setIsPickerOpen(true)}>
-            <Text style={styles.selectItemButtonText}>{isAddingItem ? 'Adding...' : '+ Add Item'}</Text>
+            <MaterialIcons name="add" size={16} color={Brand.plum} />
+            <Text style={styles.selectItemButtonText}>{isAddingItem ? 'Adding...' : 'Add Item'}</Text>
           </Pressable>
         )
       ) : null}
 
-      <Text style={styles.next}>
-        Next meeting:{' '}
-        {meeting.nextMeetingDatetime
-          ? `${meeting.nextMeetingDatetime}${
-              meeting.nextMeetingAssignedEmployeeName ? ` \u00b7 ${meeting.nextMeetingAssignedEmployeeName}` : ''
-            }`
-          : 'Not scheduled'}
-      </Text>
+      <View style={styles.nextPill}>
+        <MaterialIcons name="schedule" size={13} color={meeting.nextMeetingDatetime ? '#059669' : Brand.mauve} />
+        <Text style={[styles.next, !meeting.nextMeetingDatetime && styles.nextEmpty]} numberOfLines={1}>
+          Next meeting:{' '}
+          {meeting.nextMeetingDatetime
+            ? `${meeting.nextMeetingDatetime}${
+                meeting.nextMeetingAssignedEmployeeName ? ` \u00b7 ${meeting.nextMeetingAssignedEmployeeName}` : ''
+              }`
+            : 'Not scheduled'}
+        </Text>
+      </View>
 
       {isEditing ? (
         <View style={styles.form}>
@@ -324,41 +352,84 @@ export default function MeetingCard({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 18,
     padding: 14,
     borderWidth: 1,
-    borderColor: Brand.pink,
-    gap: 4,
+    borderColor: 'rgba(0,0,0,0.06)',
+    gap: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
   },
   headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 10,
+  },
+  iconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 11,
+    backgroundColor: 'rgba(91,55,101,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   date: {
-    fontSize: moderateScale(14),
+    flex: 1,
+    minWidth: 0,
+    fontSize: moderateScale(13.5),
     fontWeight: '700',
     color: Brand.purple,
-    flexShrink: 1,
-    minWidth: 0,
+  },
+  metaRow: {
+    gap: 4,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
   meta: {
-    fontSize: moderateScale(12),
+    fontSize: moderateScale(11.5),
     color: Brand.mauve,
   },
   sectionHeader: {
-    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
-  deleteLink: {
-    fontSize: moderateScale(12),
-    fontWeight: '700',
-    color: '#d32f2f',
+  itemDeleteButton: {
+    width: 26,
+    height: 26,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(211,47,47,0.08)',
   },
   sectionLabel: {
-    fontSize: moderateScale(12),
-    fontWeight: '700',
+    fontSize: moderateScale(11.5),
+    fontWeight: '800',
     color: Brand.mauve,
     textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  sectionCountPill: {
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  sectionCountText: {
+    fontSize: moderateScale(10.5),
+    fontWeight: '800',
+    color: Brand.purple,
+  },
+  emptyItemsBox: {
+    backgroundColor: 'rgba(0,0,0,0.025)',
+    borderRadius: 10,
+    padding: 10,
   },
   emptyItems: {
     fontSize: moderateScale(13),
@@ -369,7 +440,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: Brand.blush,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   itemEditHeader: {
     flexDirection: 'row',
@@ -377,6 +448,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   itemEditLabel: {
+    flex: 1,
+    minWidth: 0,
     fontSize: moderateScale(14),
     fontWeight: '700',
     color: Brand.purple,
@@ -422,27 +495,45 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   selectItemButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     borderWidth: 1,
     borderColor: Brand.pink,
-    borderRadius: 8,
+    borderStyle: 'dashed',
+    borderRadius: 10,
     paddingVertical: 10,
-    alignItems: 'center',
     marginTop: 4,
   },
   selectItemButtonText: {
     fontSize: moderateScale(13),
     color: Brand.plum,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   error: {
     color: '#d32f2f',
     fontSize: moderateScale(13),
   },
+  nextPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(0,0,0,0.04)',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
   next: {
-    fontSize: moderateScale(12),
-    color: Brand.plum,
+    fontSize: moderateScale(11.5),
+    color: '#059669',
+    fontWeight: '700',
+    flexShrink: 1,
+  },
+  nextEmpty: {
+    color: Brand.mauve,
     fontWeight: '600',
-    marginTop: 8,
   },
   nextMeetingLabel: {
     fontSize: moderateScale(13),

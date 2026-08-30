@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import AppButton from '@/components/common/AppButton';
 import NextCallFields from '@/components/calls/NextCallFields';
@@ -153,27 +154,36 @@ export default function MeetingsScreen() {
     <ScreenContainer avoidKeyboard>
       <Stack.Screen options={{ headerShown: true, title: data?.clientName || 'Meetings' }} />
 
+      <View style={styles.header}>
+        <Text style={styles.pageTitle}>Meeting History</Text>
+        <Text style={styles.pageSubtitle}>
+          {meetings.length} meeting{meetings.length === 1 ? '' : 's'} logged
+        </Text>
+      </View>
+
       {!showCreateForm ? (
-        <AppButton
-          title="Create New Meeting"
-          onPress={() => setShowCreateForm(true)}
-          style={styles.createButton}
-        />
+        <Pressable style={styles.createButton} onPress={() => setShowCreateForm(true)}>
+          <MaterialIcons name="event-available" size={18} color="#fff" />
+          <Text style={styles.createButtonText}>Log New Meeting</Text>
+        </Pressable>
       ) : (
         <View style={styles.logSection}>
           <Text style={styles.formTitle}>Requirements</Text>
 
           {draftItems.map((item) => (
             <View key={item.id} style={styles.draftRow}>
+              <View style={styles.draftIconBadge}>
+                <MaterialIcons name="checklist" size={14} color={Brand.plum} />
+              </View>
               <View style={styles.draftInfo}>
-                <Text style={styles.draftLabel}>{item.label}</Text>
+                <Text style={styles.draftLabel} numberOfLines={1}>{item.label}</Text>
                 <Text style={styles.draftMeta}>
                   Qty: {item.quantity}
                   {item.images?.length ? ` \u00b7 ${item.images.length} photo(s)` : ''}
                 </Text>
               </View>
-              <Pressable onPress={() => handleRemoveDraftItem(item.id)}>
-                <Text style={styles.removeLink}>Remove</Text>
+              <Pressable onPress={() => handleRemoveDraftItem(item.id)} style={styles.draftRemoveButton} hitSlop={6}>
+                <MaterialIcons name="close" size={15} color="#d32f2f" />
               </Pressable>
             </View>
           ))}
@@ -188,14 +198,16 @@ export default function MeetingsScreen() {
             />
           ) : (
             <Pressable style={styles.selectItemButton} onPress={() => setIsPickerOpen(true)}>
-              <Text style={styles.selectItemButtonText}>+ Select Requirement</Text>
+              <MaterialIcons name="add" size={16} color={Brand.plum} />
+              <Text style={styles.selectItemButtonText}>Select Requirement</Text>
             </Pressable>
           )}
 
           {!showNextMeeting ? (
-            <Text style={styles.scheduleLink} onPress={() => setShowNextMeeting(true)}>
-              + Schedule next meeting
-            </Text>
+            <Pressable style={styles.scheduleLinkRow} onPress={() => setShowNextMeeting(true)}>
+              <MaterialIcons name="add-alarm" size={15} color={Brand.plum} />
+              <Text style={styles.scheduleLink}>Schedule next meeting</Text>
+            </Pressable>
           ) : (
             <View style={styles.nextMeetingSection}>
               <Text style={styles.nextMeetingTitle}>Next Meeting</Text>
@@ -205,13 +217,18 @@ export default function MeetingsScreen() {
                 employeeId={nextMeetingEmployeeId}
                 onEmployeeChange={setNextMeetingEmployeeId}
               />
-              <Text style={styles.removeLink} onPress={() => setShowNextMeeting(false)}>
-                Remove next meeting
-              </Text>
+              <Pressable onPress={() => setShowNextMeeting(false)}>
+                <Text style={styles.removeLink}>Remove next meeting</Text>
+              </Pressable>
             </View>
           )}
 
-          {formError ? <Text style={styles.error}>{formError}</Text> : null}
+          {formError ? (
+            <View style={styles.errorBanner}>
+              <MaterialIcons name="error-outline" size={16} color="#d32f2f" />
+              <Text style={styles.error}>{formError}</Text>
+            </View>
+          ) : null}
 
           <View style={styles.formActions}>
             <AppButton
@@ -237,7 +254,14 @@ export default function MeetingsScreen() {
         </View>
       )}
 
-      <Text style={styles.sectionTitle}>Meeting History</Text>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Recent Meetings</Text>
+        {meetings.length > 0 ? (
+          <View style={styles.countPill}>
+            <Text style={styles.countPillText}>{meetings.length}</Text>
+          </View>
+        ) : null}
+      </View>
 
       <FlatList
         style={styles.list}
@@ -270,28 +294,69 @@ export default function MeetingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  createButton: {
+  header: {
     marginBottom: 16,
+    gap: 2,
+  },
+  pageTitle: {
+    fontSize: moderateScale(20),
+    fontWeight: '800',
+    color: Brand.purple,
+  },
+  pageSubtitle: {
+    fontSize: moderateScale(12),
+    color: Brand.mauve,
+  },
+  createButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Brand.plum,
+    borderRadius: 14,
+    paddingVertical: 14,
+    marginBottom: 16,
+  },
+  createButtonText: {
+    fontSize: moderateScale(14),
+    fontWeight: '800',
+    color: '#fff',
   },
   logSection: {
     gap: 10,
     marginBottom: 16,
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
+    padding: 14,
   },
   formTitle: {
-    fontSize: moderateScale(13),
-    fontWeight: '700',
+    fontSize: moderateScale(12),
+    fontWeight: '800',
     color: Brand.mauve,
     textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
   draftRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 10,
     borderBottomWidth: 1,
-    borderBottomColor: Brand.blush,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
     paddingVertical: 8,
   },
+  draftIconBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    backgroundColor: 'rgba(91,55,101,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   draftInfo: {
+    flex: 1,
+    minWidth: 0,
     gap: 2,
   },
   draftLabel: {
@@ -303,17 +368,35 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(12),
     color: Brand.mauve,
   },
+  draftRemoveButton: {
+    width: 26,
+    height: 26,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(211,47,47,0.08)',
+  },
   selectItemButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     borderWidth: 1,
     borderColor: Brand.pink,
-    borderRadius: 8,
+    borderStyle: 'dashed',
+    borderRadius: 10,
     paddingVertical: 10,
-    alignItems: 'center',
   },
   selectItemButtonText: {
     fontSize: moderateScale(13),
     color: Brand.plum,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  scheduleLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
   },
   scheduleLink: {
     fontSize: moderateScale(13),
@@ -343,15 +426,42 @@ const styles = StyleSheet.create({
   formButton: {
     flex: 1,
   },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#fdecec',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
   error: {
+    flex: 1,
     color: '#d32f2f',
-    fontSize: moderateScale(13),
+    fontWeight: '600',
+    fontSize: moderateScale(12.5),
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: moderateScale(16),
-    fontWeight: '700',
+    fontWeight: '800',
     color: Brand.purple,
-    marginBottom: 10,
+  },
+  countPill: {
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 2,
+  },
+  countPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: Brand.purple,
   },
   list: {
     flex: 1,

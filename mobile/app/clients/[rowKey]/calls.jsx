@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import AppButton from '@/components/common/AppButton';
 import AppInput from '@/components/common/AppInput';
@@ -134,12 +135,18 @@ export default function CallsScreen() {
     <ScreenContainer avoidKeyboard>
       <Stack.Screen options={{ headerShown: true, title: data?.clientName || 'Calls' }} />
 
+      <View style={styles.header}>
+        <Text style={styles.pageTitle}>Call History</Text>
+        <Text style={styles.pageSubtitle}>
+          {calls.length} call{calls.length === 1 ? '' : 's'} logged
+        </Text>
+      </View>
+
       {!showCreateForm ? (
-        <AppButton
-          title="Create New Call"
-          onPress={() => setShowCreateForm(true)}
-          style={styles.createButton}
-        />
+        <Pressable style={styles.createButton} onPress={() => setShowCreateForm(true)}>
+          <MaterialIcons name="add-call" size={18} color="#fff" />
+          <Text style={styles.createButtonText}>Log New Call</Text>
+        </Pressable>
       ) : (
         <View style={styles.logSection}>
           <AppInput
@@ -150,8 +157,9 @@ export default function CallsScreen() {
           />
 
           {!showNextCall ? (
-            <Pressable onPress={() => setShowNextCall(true)}>
-              <Text style={styles.scheduleLink}>+ Schedule next call </Text>
+            <Pressable style={styles.scheduleLinkRow} onPress={() => setShowNextCall(true)}>
+              <MaterialIcons name="add-alarm" size={15} color={Brand.plum} />
+              <Text style={styles.scheduleLink}>Schedule next call</Text>
             </Pressable>
           ) : (
             <View style={styles.nextCallSection}>
@@ -168,7 +176,12 @@ export default function CallsScreen() {
             </View>
           )}
 
-          {formError ? <Text style={styles.error}>{formError}</Text> : null}
+          {formError ? (
+            <View style={styles.errorBanner}>
+              <MaterialIcons name="error-outline" size={16} color="#d32f2f" />
+              <Text style={styles.error}>{formError}</Text>
+            </View>
+          ) : null}
 
           <View style={styles.formActions}>
             <AppButton
@@ -187,7 +200,14 @@ export default function CallsScreen() {
         </View>
       )}
 
-      <Text style={styles.sectionTitle}>Call History</Text>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Recent Calls</Text>
+        {calls.length > 0 ? (
+          <View style={styles.countPill}>
+            <Text style={styles.countPillText}>{calls.length}</Text>
+          </View>
+        ) : null}
+      </View>
 
       <FlatList
         style={styles.list}
@@ -220,12 +240,48 @@ export default function CallsScreen() {
 }
 
 const styles = StyleSheet.create({
-  createButton: {
+  header: {
     marginBottom: 16,
+    gap: 2,
+  },
+  pageTitle: {
+    fontSize: moderateScale(20),
+    fontWeight: '800',
+    color: Brand.purple,
+  },
+  pageSubtitle: {
+    fontSize: moderateScale(12),
+    color: Brand.mauve,
+  },
+  createButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Brand.plum,
+    borderRadius: 14,
+    paddingVertical: 14,
+    marginBottom: 16,
+  },
+  createButtonText: {
+    fontSize: moderateScale(14),
+    fontWeight: '800',
+    color: '#fff',
   },
   logSection: {
     gap: 10,
     marginBottom: 16,
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
+    padding: 14,
+  },
+  scheduleLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
   },
   scheduleLink: {
     fontSize: moderateScale(13),
@@ -255,15 +311,42 @@ const styles = StyleSheet.create({
   formButton: {
     flex: 1,
   },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#fdecec',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
   error: {
+    flex: 1,
     color: '#d32f2f',
-    fontSize: moderateScale(13),
+    fontWeight: '600',
+    fontSize: moderateScale(12.5),
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: moderateScale(16),
-    fontWeight: '700',
+    fontWeight: '800',
     color: Brand.purple,
-    marginBottom: 10,
+  },
+  countPill: {
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 2,
+  },
+  countPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: Brand.purple,
   },
   list: {
     flex: 1,

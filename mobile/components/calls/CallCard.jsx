@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import AppButton from '@/components/common/AppButton';
 import AppInput from '@/components/common/AppInput';
@@ -62,21 +63,30 @@ export default function CallCard({ call, onSave, onRequestDelete, isSaving }) {
   return (
     <View style={styles.card}>
       <View style={styles.headerRow}>
-        <Text style={styles.date}>{call.callDatetime}</Text>
+        <View style={styles.iconBadge}>
+          <MaterialIcons name="call" size={16} color={Brand.plum} />
+        </View>
+        <Text style={styles.date} numberOfLines={1}>
+          {call.callDatetime}
+        </Text>
         <View style={styles.headerActions}>
           {hasContent && !isEditing ? (
-            <Pressable onPress={handleEdit}>
-              <Text style={styles.actionLink}>Edit</Text>
+            <Pressable onPress={handleEdit} style={styles.iconButton} hitSlop={6}>
+              <MaterialIcons name="edit" size={16} color={Brand.plum} />
             </Pressable>
           ) : null}
-          <Pressable onPress={() => onRequestDelete(call.id)}>
-            <Text style={styles.deleteLink}>Delete</Text>
+          <Pressable onPress={() => onRequestDelete(call.id)} style={[styles.iconButton, styles.deleteIconButton]} hitSlop={6}>
+            <MaterialIcons name="delete-outline" size={16} color="#d32f2f" />
           </Pressable>
         </View>
       </View>
 
       {fieldsLocked ? (
-        call.callDiscussion ? <Text style={styles.discussion}>{call.callDiscussion}</Text> : null
+        call.callDiscussion ? (
+          <View style={styles.discussionBox}>
+            <Text style={styles.discussion}>{call.callDiscussion}</Text>
+          </View>
+        ) : null
       ) : (
         <AppInput
           value={discussion}
@@ -87,16 +97,31 @@ export default function CallCard({ call, onSave, onRequestDelete, isSaving }) {
         />
       )}
 
-      {call.createdByName ? <Text style={styles.meta}>Logged by {call.createdByName}</Text> : null}
-      {call.assignedByEmployeeName ? (
-        <Text style={styles.meta}>Assigned by {call.assignedByEmployeeName}</Text>
+      {call.createdByName || call.assignedByEmployeeName ? (
+        <View style={styles.metaRow}>
+          {call.createdByName ? (
+            <View style={styles.metaItem}>
+              <MaterialIcons name="person" size={12} color={Brand.mauve} />
+              <Text style={styles.meta}>Logged by {call.createdByName}</Text>
+            </View>
+          ) : null}
+          {call.assignedByEmployeeName ? (
+            <View style={styles.metaItem}>
+              <MaterialIcons name="assignment-ind" size={12} color={Brand.mauve} />
+              <Text style={styles.meta}>Assigned by {call.assignedByEmployeeName}</Text>
+            </View>
+          ) : null}
+        </View>
       ) : null}
 
       {!isEditing && call.nextCallDatetime ? (
-        <Text style={styles.next}>
-          Next call: {call.nextCallDatetime}
-          {call.nextCallAssignedEmployeeName ? ` \u00b7 ${call.nextCallAssignedEmployeeName}` : ''}
-        </Text>
+        <View style={styles.nextPill}>
+          <MaterialIcons name="schedule" size={13} color="#059669" />
+          <Text style={styles.next} numberOfLines={1}>
+            Next call: {call.nextCallDatetime}
+            {call.nextCallAssignedEmployeeName ? ` \u00b7 ${call.nextCallAssignedEmployeeName}` : ''}
+          </Text>
+        </View>
       ) : null}
 
       {isEditing ? (
@@ -126,55 +151,93 @@ export default function CallCard({ call, onSave, onRequestDelete, isSaving }) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 18,
     padding: 14,
     borderWidth: 1,
-    borderColor: Brand.pink,
-    gap: 4,
+    borderColor: 'rgba(0,0,0,0.06)',
+    gap: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
   },
   headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 10,
+  },
+  iconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 11,
+    backgroundColor: 'rgba(91,55,101,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerActions: {
     flexDirection: 'row',
-    gap: 14,
+    gap: 6,
+  },
+  iconButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(91,55,101,0.08)',
+  },
+  deleteIconButton: {
+    backgroundColor: 'rgba(211,47,47,0.08)',
   },
   date: {
-    fontSize: moderateScale(14),
+    flex: 1,
+    minWidth: 0,
+    fontSize: moderateScale(13.5),
     fontWeight: '700',
     color: Brand.purple,
-    flexShrink: 1,
-    minWidth: 0,
   },
-  actionLink: {
-    fontSize: moderateScale(12),
-    fontWeight: '700',
-    color: Brand.plum,
-  },
-  deleteLink: {
-    fontSize: moderateScale(12),
-    fontWeight: '700',
-    color: '#d32f2f',
+  discussionBox: {
+    backgroundColor: 'rgba(0,0,0,0.025)',
+    borderRadius: 12,
+    padding: 12,
   },
   discussion: {
     fontSize: moderateScale(14),
     color: Brand.purple,
+    lineHeight: moderateScale(20),
   },
   discussionInput: {
     minHeight: 70,
     textAlignVertical: 'top',
   },
+  metaRow: {
+    gap: 4,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
   meta: {
-    fontSize: moderateScale(12),
+    fontSize: moderateScale(11.5),
     color: Brand.mauve,
   },
+  nextPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(5,150,105,0.08)',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
   next: {
-    fontSize: moderateScale(12),
-    color: Brand.plum,
-    fontWeight: '600',
-    marginTop: 4,
+    fontSize: moderateScale(11.5),
+    color: '#059669',
+    fontWeight: '700',
+    flexShrink: 1,
   },
   nextCallLabel: {
     fontSize: moderateScale(13),
@@ -182,7 +245,7 @@ const styles = StyleSheet.create({
     color: Brand.purple,
   },
   form: {
-    marginTop: 10,
+    marginTop: 4,
     gap: 10,
   },
   formActions: {

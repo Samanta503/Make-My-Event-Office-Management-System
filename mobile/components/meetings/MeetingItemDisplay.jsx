@@ -1,4 +1,5 @@
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { API_ORIGIN } from '@/constants/config';
 import { Brand } from '@/constants/theme';
@@ -16,8 +17,15 @@ export default function MeetingItemDisplay({ item }) {
   return (
     <View style={styles.row}>
       <View style={styles.headerRow}>
-        <Text style={styles.label}>{label}</Text>
-        <Text style={styles.quantity}>Qty: {item.quantity}</Text>
+        <View style={styles.iconBadge}>
+          <MaterialIcons name="checklist" size={14} color={Brand.plum} />
+        </View>
+        <Text style={styles.label} numberOfLines={1}>
+          {label}
+        </Text>
+        <View style={styles.quantityPill}>
+          <Text style={styles.quantity}>x{item.quantity}</Text>
+        </View>
       </View>
       {item.description ? <Text style={styles.description}>{item.description}</Text> : null}
       {item.images?.length ? (
@@ -33,38 +41,56 @@ export default function MeetingItemDisplay({ item }) {
 
 const styles = StyleSheet.create({
   row: {
-    gap: 6,
+    gap: 8,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: Brand.blush,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 8,
+  },
+  iconBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 9,
+    backgroundColor: 'rgba(91,55,101,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   label: {
+    flex: 1,
+    minWidth: 0,
     fontSize: moderateScale(14),
     fontWeight: '700',
     color: Brand.purple,
-    flexShrink: 1,
+  },
+  quantityPill: {
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
   quantity: {
-    fontSize: moderateScale(12),
+    fontSize: moderateScale(11.5),
     color: Brand.mauve,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   description: {
     fontSize: moderateScale(13),
     color: Brand.purple,
+    paddingLeft: 34,
   },
   imageRow: {
     gap: 8,
-    marginTop: 4,
+    marginTop: 2,
+    paddingLeft: 34,
   },
   image: {
-    width: 64,
-    height: 64,
-    borderRadius: 8,
+    width: 60,
+    height: 60,
+    borderRadius: 10,
   },
 });
+

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { Brand } from '@/constants/theme';
 import { CLIENT_REQUIREMENT_OPTIONS } from '@/constants/meetingItems';
@@ -40,6 +41,7 @@ export default function ItemSelectModal({ visible, existingKeys = [], onSelect, 
       <View style={styles.overlay}>
         <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
         <View style={styles.sheet}>
+          <View style={styles.grabber} />
           <Text style={styles.title}>Select Requirement</Text>
 
           {!pendingOther ? (
@@ -48,7 +50,11 @@ export default function ItemSelectModal({ visible, existingKeys = [], onSelect, 
               keyExtractor={(item) => item.key}
               renderItem={({ item }) => (
                 <Pressable style={styles.option} onPress={() => handlePick(item)}>
+                  <View style={styles.optionIconBadge}>
+                    <MaterialIcons name={item.key === 'other' ? 'add-circle-outline' : 'checklist'} size={15} color={Brand.plum} />
+                  </View>
                   <Text style={styles.optionText}>{item.label}</Text>
+                  <MaterialIcons name="chevron-right" size={18} color={Brand.mauve} />
                 </Pressable>
               )}
               style={styles.list}
@@ -82,18 +88,27 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
   },
   sheet: {
     backgroundColor: '#fff',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     padding: 16,
+    paddingTop: 10,
     maxHeight: '70%',
+  },
+  grabber: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: 'rgba(0,0,0,0.12)',
+    marginBottom: 12,
   },
   title: {
     fontSize: moderateScale(16),
-    fontWeight: '700',
+    fontWeight: '800',
     color: Brand.purple,
     marginBottom: 10,
   },
@@ -101,11 +116,24 @@ const styles = StyleSheet.create({
     maxHeight: SCREEN_HEIGHT * 0.45,
   },
   option: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Brand.blush,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  optionIconBadge: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: 'rgba(91,55,101,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   optionText: {
+    flex: 1,
+    minWidth: 0,
     fontSize: moderateScale(14),
     color: Brand.purple,
     fontWeight: '600',

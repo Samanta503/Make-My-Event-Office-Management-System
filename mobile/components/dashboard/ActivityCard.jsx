@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { Brand } from '@/constants/theme';
 import { useResponsive } from '@/utils/responsive';
@@ -6,6 +7,11 @@ import { useResponsive } from '@/utils/responsive';
 const TYPE_LABEL = {
   client_next_call: 'Call',
   client_next_meeting: 'Meeting',
+};
+
+const TYPE_ICON = {
+  client_next_call: 'call',
+  client_next_meeting: 'groups',
 };
 
 const TYPE_COLOR = {
@@ -16,22 +22,28 @@ const TYPE_COLOR = {
 export default function ActivityCard({ event, onPress }) {
   const { moderateScale } = useResponsive();
   const label = TYPE_LABEL[event.source] || 'Activity';
+  const icon = TYPE_ICON[event.source] || 'event-note';
   const color = TYPE_COLOR[event.source] || Brand.mauve;
   const Container = onPress ? Pressable : View;
 
   return (
     <Container style={styles.card} onPress={onPress}>
-      <View style={[styles.badge, { backgroundColor: color }]}>
-        <Text style={[styles.badgeText, { fontSize: moderateScale(12) }]} numberOfLines={1}>{label}</Text>
+      <View style={[styles.iconBadge, { backgroundColor: `${color}1f` }]}>
+        <MaterialIcons name={icon} size={18} color={color} />
       </View>
       <View style={styles.info}>
         <Text style={[styles.clientName, { fontSize: moderateScale(15) }]} numberOfLines={1}>
           {event.clientName || 'Unknown client'}
         </Text>
-        <Text style={[styles.time, { fontSize: moderateScale(13) }]} numberOfLines={1}>
-          {event.date}{event.time ? ` \u00b7 ${event.time}` : ''}
-        </Text>
+        <View style={styles.metaRow}>
+          <Text style={[styles.badgeText, { color, fontSize: moderateScale(11) }]}>{label}</Text>
+          <Text style={styles.dot}>•</Text>
+          <Text style={[styles.time, { fontSize: moderateScale(12) }]} numberOfLines={1}>
+            {event.date}{event.time ? ` \u00b7 ${event.time}` : ''}
+          </Text>
+        </View>
       </View>
+      {onPress ? <MaterialIcons name="chevron-right" size={20} color={Brand.mauve} /> : null}
     </Container>
   );
 }
@@ -41,30 +53,50 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#f5f7f8',
-    borderRadius: 10,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
+    borderRadius: 16,
     padding: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1,
   },
-  badge: {
+  iconBadge: {
     flexShrink: 0,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  badgeText: {
-    color: '#fff',
-    fontWeight: '700',
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   info: {
     flex: 1,
     minWidth: 0,
-    gap: 2,
+    gap: 3,
   },
   clientName: {
-    fontWeight: '600',
+    fontWeight: '700',
     color: Brand.purple,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  badgeText: {
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  dot: {
+    color: Brand.mauve,
+    fontSize: 11,
   },
   time: {
     color: Brand.mauve,
+    fontWeight: '500',
   },
 });
