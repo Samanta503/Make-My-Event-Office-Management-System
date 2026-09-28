@@ -102,7 +102,30 @@ jobs:
           # BACKEND_DIR) - confirm it exists before the SFTP step relies on it.
           test -f "Accounts/backend/routes/accounts.js"
           test -f "Accounts/backend/controllers/accountsController.js"
+          test -f "Accounts/backend/utils/accountsShared.js"
 
+          # Attendance module lives under mobile/Attendance/backend, same
+          # deploy pattern as the Accounts module above.
+          test -f "mobile/Attendance/backend/routes/attendance.js"
+          test -f "mobile/Attendance/backend/controllers/attendanceController.js"
+          test -f "mobile/Attendance/backend/utils/officeLocation.js"
+          # PDF Generator module - same deploy pattern as the Accounts/
+          # Attendance modules above. Previously MISSING from this workflow
+          # entirely, which meant server.js's `require(pdfGeneratorBackendDir
+          # + "/routes/pdfGenerator.js")` had nothing to find on the server -
+          # crashed the whole app with MODULE_NOT_FOUND on every deploy.
+          test -f "PDFGenerator/backend/routes/pdfGenerator.js"
+          test -f "PDFGenerator/backend/controllers/pdfGeneratorController.js"
+          test -f "PDFGenerator/backend/services/pdfGeneratorService.js"
+          test -f "PDFGenerator/backend/config/pdfLayout.js"
+          test -f "PDFGenerator/backend/templates/make-my-event-letter-pad.pdf"
+          # Money Receipt Generator module (Admin-only) - same deploy pattern
+          # as the Accounts/Attendance modules above.
+          test -f "MoneyReceiptGenerator/backend/routes/moneyReceipt.js"
+          test -f "MoneyReceiptGenerator/backend/controllers/moneyReceiptController.js"
+          test -f "MoneyReceiptGenerator/backend/services/moneyReceiptGeneratorService.js"
+          test -f "MoneyReceiptGenerator/backend/config/moneyReceiptLayout.js"
+          test -f "MoneyReceiptGenerator/backend/templates/make-my-event-letter-pad.pdf"
           # cPanel's manual "Run NPM Install" does not run the
           # postinstall "prisma generate" hook, so the generated
           # Prisma Client (node_modules/.prisma/client) never gets
@@ -294,10 +317,85 @@ jobs:
             echo "-mkdir accounts-module"
             echo "-mkdir accounts-module/controllers"
             echo "-mkdir accounts-module/routes"
+            echo "-mkdir accounts-module/utils"
             echo "lcd \"$GITHUB_WORKSPACE/Accounts/backend/controllers\""
             echo "put * accounts-module/controllers/"
             echo "lcd \"$GITHUB_WORKSPACE/Accounts/backend/routes\""
             echo "put * accounts-module/routes/"
+            echo "lcd \"$GITHUB_WORKSPACE/Accounts/backend/utils\""
+            echo "put * accounts-module/utils/"
+
+            # Attendance module (mobile/Attendance/backend/*) - same deploy
+            # pattern as the Accounts module above, uploaded into
+            # APP_DIR/attendance-module so its bare imports (express) resolve
+            # via this app's already-deployed node_modules. server.js finds it
+            # via the ATTENDANCE_BACKEND_DIR env var (set once in cPanel's
+            # Setup Node.js App -> Environment variables), same as
+            # ACCOUNTS_BACKEND_DIR.
+            echo "cd ${APP_DIR}"
+            echo "-mkdir attendance-module"
+            echo "-mkdir attendance-module/controllers"
+            echo "-mkdir attendance-module/routes"
+            echo "-mkdir attendance-module/utils"
+            echo "lcd \"$GITHUB_WORKSPACE/mobile/Attendance/backend/controllers\""
+            echo "put * attendance-module/controllers/"
+            echo "lcd \"$GITHUB_WORKSPACE/mobile/Attendance/backend/routes\""
+            echo "put * attendance-module/routes/"
+            echo "lcd \"$GITHUB_WORKSPACE/mobile/Attendance/backend/utils\""
+            echo "put * attendance-module/utils/"
+
+            # PDF Generator module (PDFGenerator/backend/*) - same deploy
+            # pattern as Accounts/Attendance above, uploaded into
+            # APP_DIR/pdf-generator-module so its bare imports (express,
+            # pdf-lib) resolve via this app's already-deployed node_modules.
+            # server.js finds it via the PDF_GENERATOR_BACKEND_DIR env var
+            # (set once in cPanel's Setup Node.js App -> Environment
+            # variables), same as ACCOUNTS_BACKEND_DIR. This module was
+            # PREVIOUSLY MISSING from this workflow entirely - server.js
+            # already required it unconditionally, so every deploy crashed
+            # the whole app with MODULE_NOT_FOUND until this was added.
+            echo "cd ${APP_DIR}"
+            echo "-mkdir pdf-generator-module"
+            echo "-mkdir pdf-generator-module/templates"
+            echo "-mkdir pdf-generator-module/config"
+            echo "-mkdir pdf-generator-module/controllers"
+            echo "-mkdir pdf-generator-module/routes"
+            echo "-mkdir pdf-generator-module/services"
+            echo "lcd \"$GITHUB_WORKSPACE/PDFGenerator/backend/templates\""
+            echo "put * pdf-generator-module/templates/"
+            echo "lcd \"$GITHUB_WORKSPACE/PDFGenerator/backend/config\""
+            echo "put * pdf-generator-module/config/"
+            echo "lcd \"$GITHUB_WORKSPACE/PDFGenerator/backend/controllers\""
+            echo "put * pdf-generator-module/controllers/"
+            echo "lcd \"$GITHUB_WORKSPACE/PDFGenerator/backend/routes\""
+            echo "put * pdf-generator-module/routes/"
+            echo "lcd \"$GITHUB_WORKSPACE/PDFGenerator/backend/services\""
+            echo "put * pdf-generator-module/services/"
+
+            # Money Receipt Generator module (MoneyReceiptGenerator/backend/*) -
+            # Admin-only, same deploy pattern as Accounts/Attendance above,
+            # uploaded into APP_DIR/money-receipt-module so its bare imports
+            # (express, pdf-lib) resolve via this app's already-deployed
+            # node_modules. server.js finds it via the MONEY_RECEIPT_BACKEND_DIR
+            # env var (set once in cPanel's Setup Node.js App -> Environment
+            # variables), same as ACCOUNTS_BACKEND_DIR/PDF_GENERATOR_BACKEND_DIR.
+            echo "cd ${APP_DIR}"
+            echo "-mkdir money-receipt-module"
+            echo "-mkdir money-receipt-module/templates"
+            echo "-mkdir money-receipt-module/config"
+            echo "-mkdir money-receipt-module/controllers"
+            echo "-mkdir money-receipt-module/routes"
+            echo "-mkdir money-receipt-module/services"
+            echo "lcd \"$GITHUB_WORKSPACE/MoneyReceiptGenerator/backend/templates\""
+            echo "put * money-receipt-module/templates/"
+            echo "lcd \"$GITHUB_WORKSPACE/MoneyReceiptGenerator/backend/config\""
+            echo "put * money-receipt-module/config/"
+            echo "lcd \"$GITHUB_WORKSPACE/MoneyReceiptGenerator/backend/controllers\""
+            echo "put * money-receipt-module/controllers/"
+            echo "lcd \"$GITHUB_WORKSPACE/MoneyReceiptGenerator/backend/routes\""
+            echo "put * money-receipt-module/routes/"
+            echo "lcd \"$GITHUB_WORKSPACE/MoneyReceiptGenerator/backend/services\""
+            echo "put * money-receipt-module/services/"
 
             echo "-mkdir tmp"
             echo "lcd \"$GITHUB_WORKSPACE\""

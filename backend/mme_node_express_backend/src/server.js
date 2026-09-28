@@ -28,6 +28,7 @@ import {
   notFoundHandler,
 } from "./middleware/errorHandler.js";
 import { requireEmployee, isValidSession } from "./middleware/employeeAuth.js";
+import { requireAdmin } from "./middleware/adminAuth.js";
 import { attachBearerToken } from "./middleware/attachBearerToken.js";
 
 const app = express();
@@ -90,6 +91,63 @@ const {
   default: accountsRoutes,
   uploadsRootDirectory: accountsUploadsRootDirectory,
 } = require(path.join(accountsBackendDirectory, "routes/accounts.js"));
+
+const { default: adminAccountsRoutes } = require(
+  path.join(accountsBackendDirectory, "routes/adminAccounts.js"),
+);
+
+/*
+|--------------------------------------------------------------------------
+| Resolve the Attendance module
+|--------------------------------------------------------------------------
+|
+| Same idea as the Accounts module above, but nested one level deeper
+| (mobile/Attendance/backend instead of a repo-root sibling) since this
+| module is dedicated to the mobile app. ATTENDANCE_BACKEND_DIR overrides
+| the resolved path for deployment, same as ACCOUNTS_BACKEND_DIR.
+*/
+
+const attendanceBackendDirectory = process.env.ATTENDANCE_BACKEND_DIR
+  ? path.resolve(process.env.ATTENDANCE_BACKEND_DIR)
+  : path.resolve(__dirname, "../../../mobile/Attendance/backend");
+
+const { default: attendanceRoutes } = require(
+  path.join(attendanceBackendDirectory, "routes/attendance.js"),
+);
+
+/*
+|--------------------------------------------------------------------------
+| Resolve the PDF Generator module
+|--------------------------------------------------------------------------
+|
+| Same idea as the Accounts module above - PDF_GENERATOR_BACKEND_DIR
+| overrides the resolved path for deployment.
+*/
+
+const pdfGeneratorBackendDirectory = process.env.PDF_GENERATOR_BACKEND_DIR
+  ? path.resolve(process.env.PDF_GENERATOR_BACKEND_DIR)
+  : path.resolve(__dirname, "../../../PDFGenerator/backend");
+
+const { default: pdfGeneratorRoutes } = require(
+  path.join(pdfGeneratorBackendDirectory, "routes/pdfGenerator.js"),
+);
+
+/*
+|--------------------------------------------------------------------------
+| Resolve the Money Receipt Generator module
+|--------------------------------------------------------------------------
+|
+| Admin-only — same resolution pattern as the PDF Generator module above,
+| but mounted behind requireAdmin (see below) instead of requireEmployee.
+*/
+
+const moneyReceiptBackendDirectory = process.env.MONEY_RECEIPT_BACKEND_DIR
+  ? path.resolve(process.env.MONEY_RECEIPT_BACKEND_DIR)
+  : path.resolve(__dirname, "../../../MoneyReceiptGenerator/backend");
+
+const { default: moneyReceiptRoutes } = require(
+  path.join(moneyReceiptBackendDirectory, "routes/moneyReceipt.js"),
+);
 
 /*
 |--------------------------------------------------------------------------
@@ -185,6 +243,7 @@ app.get("/api/health", async (req, res, next) => {
       status: "ok",
       database: "connected",
     });
+    
   } catch (error) {
     return next(error);
   }
@@ -205,11 +264,14 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/admin", adminActivityRoutes);
 app.use("/api/admin", adminCalendarRoutes);
 app.use("/api/admin", adminDashboardRoutes);
+app.use("/api/admin/accounts", requireAdmin, adminAccountsRoutes);
 app.use("/api/admin", adminAttendanceRoutes);
 app.use("/api/meetings", attachBearerToken, requireEmployee, meetingRoutes);
 app.use("/api/calls", attachBearerToken, requireEmployee, callRoutes);
 app.use("/api/accounts", attachBearerToken, requireEmployee, accountsRoutes);
 app.use("/api/attendance", attachBearerToken, requireEmployee, attendanceRoutes);
+app.use("/api/pdf-generator", attachBearerToken, requireEmployee, pdfGeneratorRoutes);
+app.use("/api/admin/money-receipts", requireAdmin, moneyReceiptRoutes);
 
 /*
 |--------------------------------------------------------------------------
@@ -269,7 +331,7 @@ if (existsSync(frontendIndexFile)) {
    * /login BEFORE any HTML/JS is sent — the browser never sees the
    * protected page at all when unauthenticated.
    */
-  const PROTECTED_PAGE_PREFIXES = ["/management", "/calendar"];
+  const PROTECTED_PAGE_PREFIXES = ["/management", "/calendar", "/pdf-generator"];
 
   app.get("/{*splat}", (req, res, next) => {
     const isProtectedPage = PROTECTED_PAGE_PREFIXES.some(

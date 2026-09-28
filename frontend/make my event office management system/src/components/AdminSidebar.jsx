@@ -8,8 +8,10 @@ import {
   LayoutGrid,
   LogOut,
   Phone,
+  Receipt,
   Shield,
   UsersRound,
+  Wallet,
   X,
 } from "lucide-react";
 
@@ -20,6 +22,10 @@ const NAV_ITEMS = [
   { to: "/admin/activity", label: "Meeting & Call Oversight", icon: Phone },
   { to: "/admin/attendance", label: "Attendance Management", icon: Clock },
   { to: "/admin/calendar", label: "Company Calendar", icon: CalendarDays },
+  // Financial Accounts — separate from Employee Management, which handles
+  // login accounts/passwords rather than money.
+  { to: "/admin/accounts", label: "Financial Accounts", icon: Wallet },
+  { to: "/admin/money-receipts", label: "Money Receipt Generator", icon: Receipt },
 ];
 
 function initials(name) {

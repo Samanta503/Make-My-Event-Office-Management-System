@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   CalendarClock,
+  FileSpreadsheet,
   ImageUp,
   Info,
   Layers,
@@ -10,7 +11,12 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import { formatDisplayDate, formatTaka } from "../services/accountsService";
+import {
+  formatDisplayDate,
+  formatTaka,
+  loadVendorOutstandingItems,
+  SETTLE_ALL_SENTINEL,
+} from "../services/accountsService";
 
 function emptyItem() {
   return {
@@ -21,6 +27,7 @@ function emptyItem() {
     receiptFile: null,
     vendorId: "",
     paymentStatus: "paid",
+    settlesItemId: "",
   };
 }
 
@@ -74,17 +81,21 @@ function ReceiptCell({ file, onPick, onClear }) {
   );
 }
 
-// Cost-item editor shared by the Event Based and Regular flows. Rendered as
-// one card per item rather than a wide table, so nothing needs horizontal
-// scrolling on a phone.
+// Cost-item editor shared by the Event Based and Regular flows.
 //
-// Vendor is optional on every item. Picking one requires a payment status:
-// only "Paid" reduces your wallet, while "To Pay" is recorded as a vendor
-// liability instead.
+// Two modes:
+// - Regular (billMode=false): vendor is optional per item; picking one
+//   requires a payment status, only "Paid" reduces the wallet.
+// - Event bill (billMode=true): every item is a due-bill line for the ONE
+//   vendor already chosen above this table (see ExpenseForm) — always
+//   "To Pay", never deducts the wallet, so the per-row Vendor/Payment
+//   status columns don't apply and are hidden entirely.
+// Rendered as one card per item rather than a wide table, so nothing needs
+// horizontal scrolling on a phone.
 // Column widths are relative weights that always add up to the full table
 // width — dragging a header edge steals weight from its right-hand neighbor
 // instead of growing the table, so the row never needs to scroll.
-const COLUMNS = [
+const FULL_COLUMNS = [
   { label: "#", minWeight: 1.5 },
   { label: "What was this for?", minWeight: 8 },
   { label: "Cost happened on", minWeight: 8 },
@@ -104,33 +115,71 @@ const COLUMNS = [
   { label: "Actions", minWeight: 3, align: "right" },
 ];
 
-const DEFAULT_COL_WEIGHTS = [2, 14, 11, 16.5, 11.5, 8.5, 15, 11, 6.5, 4];
-const COL_WEIGHTS_STORAGE_KEY = "mme-accounts-expense-item-col-weights";
+const BILL_COLUMNS = [
+  { label: "#", minWeight: 1.5 },
+  { label: "What was this for?", minWeight: 8 },
+  { label: "Cost happened on", minWeight: 8 },
+  { label: "Quantity", minWeight: 8 },
+  { label: "Amount / qty", minWeight: 7 },
+  { label: "Item total", minWeight: 6 },
+  { label: "Receipt", minWeight: 5 },
+  { label: "Actions", minWeight: 3, align: "right" },
+];
 
-function loadStoredColWeights() {
+const DEFAULT_COL_WEIGHTS = [2, 14, 11, 16.5, 11.5, 8.5, 15, 11, 6.5, 4];
+const DEFAULT_BILL_COL_WEIGHTS = [3, 24, 15, 20, 13, 10, 8, 7];
+const COL_WEIGHTS_STORAGE_KEY = "mme-accounts-expense-item-col-weights";
+const BILL_COL_WEIGHTS_STORAGE_KEY = "mme-accounts-expense-item-bill-col-weights";
+
+function loadStoredColWeights(storageKey, defaults) {
   try {
-    const saved = JSON.parse(localStorage.getItem(COL_WEIGHTS_STORAGE_KEY));
-    if (Array.isArray(saved) && saved.length === DEFAULT_COL_WEIGHTS.length && saved.every(Number.isFinite)) {
+    const saved = JSON.parse(localStorage.getItem(storageKey));
+    if (Array.isArray(saved) && saved.length === defaults.length && saved.every(Number.isFinite)) {
       return saved;
     }
   } catch {
     // ignore malformed/inaccessible storage, fall back to defaults
   }
-  return DEFAULT_COL_WEIGHTS;
+  return defaults;
 }
 
-export default function ExpenseItemsTable({ items, onChange, eventDate, vendors = [], invalidIndex = -1 }) {
-  const [colWeights, setColWeights] = useState(loadStoredColWeights);
+export default function ExpenseItemsTable({
+  items,
+  onChange,
+  eventDate,
+  vendors = [],
+  invalidIndex = -1,
+  billMode = false,
+  directEventMode = false,
+  onExcelUpload,
+  isImportingExcel = false,
+}) {
+  const compactMode = billMode || directEventMode;
+  const columns = compactMode ? BILL_COLUMNS : FULL_COLUMNS;
+  const storageKey = compactMode ? BILL_COL_WEIGHTS_STORAGE_KEY : COL_WEIGHTS_STORAGE_KEY;
+  const defaultWeights = compactMode ? DEFAULT_BILL_COL_WEIGHTS : DEFAULT_COL_WEIGHTS;
+  const [colWeights, setColWeights] = useState(() => loadStoredColWeights(storageKey, defaultWeights));
+  const [outstandingByVendor, setOutstandingByVendor] = useState({});
   const tableRef = useRef(null);
   const resizeRef = useRef(null);
 
+  // Cached per vendor so switching between items that share a vendor
+  // never re-fetches — only lets an already-"Paid" item pick a bill.
+  function ensureOutstandingLoaded(vendorId) {
+    if (!vendorId || outstandingByVendor[vendorId] !== undefined) return;
+    setOutstandingByVendor((prev) => ({ ...prev, [vendorId]: null }));
+    loadVendorOutstandingItems(vendorId)
+      .then((bills) => setOutstandingByVendor((prev) => ({ ...prev, [vendorId]: bills })))
+      .catch(() => setOutstandingByVendor((prev) => ({ ...prev, [vendorId]: [] })));
+  }
+
   useEffect(() => {
     try {
-      localStorage.setItem(COL_WEIGHTS_STORAGE_KEY, JSON.stringify(colWeights));
+      localStorage.setItem(storageKey, JSON.stringify(colWeights));
     } catch {
       // ignore storage errors (e.g. private browsing quota)
     }
-  }, [colWeights]);
+  }, [colWeights, storageKey]);
 
   function startColumnResize(index, e) {
     e.preventDefault();
@@ -145,8 +194,8 @@ export default function ExpenseItemsTable({ items, onChange, eventDate, vendors 
       const state = resizeRef.current;
       if (!state) return;
       const deltaWeight = ((moveEvent.clientX - state.startX) / state.tableWidth) * state.totalWeight;
-      const minLeft = COLUMNS[state.index].minWeight;
-      const minRight = COLUMNS[state.index + 1].minWeight;
+      const minLeft = columns[state.index].minWeight;
+      const minRight = columns[state.index + 1].minWeight;
       const clampedDelta = Math.min(
         Math.max(deltaWeight, minLeft - state.startLeft),
         state.startRight - minRight,
@@ -190,7 +239,9 @@ export default function ExpenseItemsTable({ items, onChange, eventDate, vendors 
     (acc, item) => {
       const total = (Number(item.quantity) || 0) * (Number(item.perQtyAmount) || 0);
       acc.grand += total;
-      if (item.vendorId && item.paymentStatus === "to_pay") acc.pending += total;
+      if (billMode) acc.pending += total;
+      else if (directEventMode) acc.wallet += total;
+      else if (item.vendorId && item.paymentStatus === "to_pay") acc.pending += total;
       else acc.wallet += total;
       return acc;
     },
@@ -200,36 +251,65 @@ export default function ExpenseItemsTable({ items, onChange, eventDate, vendors 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-black/55">
-          <Layers size={13} /> Cost Items ({items.length})
+        <div>
+          <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-black/55">
+            <Layers size={13} /> Cost Items ({items.length})
+          </div>
+          <p className="mt-1 text-[10px] font-semibold text-black/40">
+            Excel columns: Purpose / Description / Details, Date, Quantity, Amount / Qty. Extra rows and columns are ignored.
+          </p>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {onExcelUpload ? (
+            <label
+              className={`inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-[11px] font-black text-emerald-700 transition-all duration-300 ${
+                isImportingExcel
+                  ? "cursor-wait opacity-60"
+                  : "cursor-pointer hover:-translate-y-0.5 hover:border-emerald-500 hover:bg-emerald-100"
+              }`}
+              title="Import cost rows from Excel. Existing form rows will be replaced after confirmation."
+            >
+              {isImportingExcel ? (
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-emerald-300 border-t-emerald-700" />
+              ) : (
+                <FileSpreadsheet size={13} />
+              )}
+              {isImportingExcel ? "Reading Excel…" : "Upload Excel"}
+              <input
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                disabled={isImportingExcel}
+                className="hidden"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0] || null;
+                  event.target.value = "";
+                  if (file) {
+                    await onExcelUpload(file);
+                  }
+                }}
+              />
+            </label>
+          ) : null}
+
           {eventDate ? (
             <span className="inline-flex items-center gap-1.5 rounded-lg bg-[#0B0B0F] px-3 py-1.5 text-[11px] font-black text-white">
               <CalendarClock size={12} /> Event {formatDisplayDate(eventDate)}
             </span>
           ) : null}
-          <button
-            type="button"
-            onClick={addItem}
-            className="group flex items-center gap-1.5 rounded-lg border border-dashed border-black/25 bg-white px-3 py-1.5 text-[11px] font-black text-black/55 transition-all duration-300 hover:border-black hover:bg-[#0B0B0F] hover:text-white active:scale-95"
-          >
-            <Plus size={13} className="transition-transform duration-300 group-hover:rotate-90" />
-            Add another item
-          </button>
         </div>
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-black/8 bg-white">
         <table ref={tableRef} className="w-full table-fixed border-collapse text-left">
           <colgroup>
-            {COLUMNS.map((col, i) => (
+            {columns.map((col, i) => (
               <col key={i} style={{ width: `${colWeights[i]}%` }} />
             ))}
           </colgroup>
           <thead>
             <tr className="border-b border-black/10 bg-[#fafafa]">
-              {COLUMNS.map((col, i) => (
+              {columns.map((col, i) => (
                 <th
                   key={i}
                   className={`relative px-2 py-2 text-[9px] font-black uppercase tracking-[0.14em] text-black/55 ${
@@ -237,7 +317,7 @@ export default function ExpenseItemsTable({ items, onChange, eventDate, vendors 
                   }`}
                 >
                   {col.label}
-                  {i < COLUMNS.length - 1 ? (
+                  {i < columns.length - 1 ? (
                     <span
                       onMouseDown={(e) => startColumnResize(i, e)}
                       title="Drag to resize"
@@ -253,13 +333,16 @@ export default function ExpenseItemsTable({ items, onChange, eventDate, vendors 
           <tbody>
             {items.map((item, index) => {
               const total = (Number(item.quantity) || 0) * (Number(item.perQtyAmount) || 0);
-              const isPending = Boolean(item.vendorId) && item.paymentStatus === "to_pay";
+              const isPending =
+                billMode || (!directEventMode && Boolean(item.vendorId) && item.paymentStatus === "to_pay");
               const isInvalid = index === invalidIndex;
-              const impactNote = !item.vendorId
-                ? "No vendor — comes straight out of your wallet."
-                : isPending
-                  ? "Order placed only. Recorded as money owed to this vendor."
-                  : "Paying this vendor now — deducted from your wallet.";
+              const impactNote = directEventMode
+                ? "Other event cost — no vendor ledger. Deducted from your wallet after Admin approval."
+                : !item.vendorId
+                  ? "No vendor — comes straight out of your wallet."
+                  : isPending
+                    ? "Order placed only. Recorded as money owed to this vendor."
+                    : "Paying this vendor now — deducted from your wallet.";
 
               return (
                 <tr
@@ -344,61 +427,102 @@ export default function ExpenseItemsTable({ items, onChange, eventDate, vendors 
                     </div>
                   </td>
 
-                  <td className="px-2 py-2">
-                    <select
-                      value={item.vendorId}
-                      onChange={(e) => {
-                        const vendorId = e.target.value;
-                        updateItem(index, {
-                          vendorId,
-                          paymentStatus: vendorId ? item.paymentStatus || "paid" : "paid",
-                        });
-                      }}
-                      className={FIELD}
-                    >
-                      <option value="">No vendor — paid directly</option>
-                      {vendors.map((vendor) => (
-                        <option key={vendor.id} value={vendor.id}>
-                          {vendor.name}
-                          {vendor.category ? ` — ${vendor.category}` : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
+                  {!compactMode ? (
+                    <>
+                      <td className="px-2 py-2">
+                        <select
+                          value={item.vendorId}
+                          onChange={(e) => {
+                            const vendorId = e.target.value;
+                            updateItem(index, {
+                              vendorId,
+                              paymentStatus: vendorId ? item.paymentStatus || "paid" : "paid",
+                              settlesItemId: "",
+                            });
+                            if (vendorId) ensureOutstandingLoaded(vendorId);
+                          }}
+                          className={FIELD}
+                        >
+                          <option value="">No vendor — paid directly</option>
+                          {vendors.map((vendor) => (
+                            <option key={vendor.id} value={vendor.id}>
+                              {vendor.name}
+                              {vendor.category ? ` — ${vendor.category}` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
 
-                  <td className="px-2 py-2">
-                    <div
-                      className={`flex gap-1 rounded-lg border border-black/12 bg-white p-1 transition-opacity duration-300 ${
-                        item.vendorId ? "" : "opacity-40"
-                      }`}
-                    >
-                      {[
-                        { value: "paid", label: "Paid", active: "bg-emerald-600" },
-                        { value: "to_pay", label: "To Pay", active: "bg-amber-500" },
-                      ].map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          disabled={!item.vendorId}
-                          onClick={() => updateItem(index, { paymentStatus: option.value })}
-                          className={`flex-1 rounded-md px-2 py-1.5 text-[10px] font-black transition-all duration-300 disabled:cursor-not-allowed ${
-                            item.paymentStatus === option.value
-                              ? `${option.active} text-white shadow-md`
-                              : "text-black/45 hover:bg-black/5"
+                      <td className="px-2 py-2">
+                        <div
+                          className={`flex gap-1 rounded-lg border border-black/12 bg-white p-1 transition-opacity duration-300 ${
+                            item.vendorId ? "" : "opacity-40"
                           }`}
                         >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                    <p
-                      className="mt-1 flex items-start gap-1 text-[9px] leading-tight text-black/45"
-                      title={impactNote}
-                    >
-                      <Info size={10} className="mt-0.5 shrink-0" />
-                      <span className="truncate">{impactNote}</span>
-                    </p>
-                  </td>
+                          {[
+                            { value: "paid", label: "Paid", active: "bg-emerald-600" },
+                            { value: "to_pay", label: "To Pay", active: "bg-amber-500" },
+                          ].map((option) => (
+                            <button
+                              key={option.value}
+                              type="button"
+                              disabled={!item.vendorId}
+                              onClick={() => {
+                                updateItem(index, { paymentStatus: option.value, settlesItemId: "" });
+                                if (option.value === "paid" && item.vendorId) ensureOutstandingLoaded(item.vendorId);
+                              }}
+                              className={`flex-1 rounded-md px-2 py-1.5 text-[10px] font-black transition-all duration-300 disabled:cursor-not-allowed ${
+                                item.paymentStatus === option.value
+                                  ? `${option.active} text-white shadow-md`
+                                  : "text-black/45 hover:bg-black/5"
+                              }`}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
+                        <p
+                          className="mt-1 flex items-start gap-1 text-[9px] leading-tight text-black/45"
+                          title={impactNote}
+                        >
+                          <Info size={10} className="mt-0.5 shrink-0" />
+                          <span className="truncate">{impactNote}</span>
+                        </p>
+                        {item.vendorId && item.paymentStatus === "paid" ? (
+                          <select
+                            value={item.settlesItemId}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              const patch = { settlesItemId: value };
+                              // Fill in the exact amount owed so the employee never has to
+                              // look it up on the vendor's profile first.
+                              if (value === SETTLE_ALL_SENTINEL) {
+                                const totalOwed = (outstandingByVendor[item.vendorId] || []).reduce(
+                                  (sum, bill) => sum + Number(bill.stillOwed || 0),
+                                  0,
+                                );
+                                patch.quantity = "1";
+                                patch.perQtyAmount = String(totalOwed);
+                              }
+                              updateItem(index, patch);
+                            }}
+                            className="mt-1.5 w-full rounded-lg border border-black/12 bg-white px-1.5 py-1 text-[9px] font-bold text-black/75 outline-none focus:border-black"
+                            title="Which bill is this settling? Leave blank for an instant/unrelated buy."
+                          >
+                            <option value="">Not settling anything (instant buy)</option>
+                            {(outstandingByVendor[item.vendorId] || []).length ? (
+                              <option value={SETTLE_ALL_SENTINEL}>Settle ALL owed bills at once</option>
+                            ) : null}
+                            {(outstandingByVendor[item.vendorId] || []).map((bill) => (
+                              <option key={bill.id} value={bill.id}>
+                                Settle: {bill.purpose} ({formatTaka(bill.stillOwed)} owed)
+                              </option>
+                            ))}
+                          </select>
+                        ) : null}
+                      </td>
+                    </>
+                  ) : null}
 
                   <td className="px-2 py-2">
                     <ReceiptCell
@@ -429,37 +553,52 @@ export default function ExpenseItemsTable({ items, onChange, eventDate, vendors 
         </table>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={addItem}
+          className="group flex items-center gap-1.5 rounded-lg border border-dashed border-black/25 bg-white px-3 py-1.5 text-[11px] font-black text-black/55 transition-all duration-300 hover:border-black hover:bg-[#0B0B0F] hover:text-white active:scale-95"
+        >
+          <Plus size={13} className="transition-transform duration-300 group-hover:rotate-90" />
+          Add another item
+        </button>
+      </div>
+
+      <div className={`grid gap-3 ${compactMode ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
         <div className="rounded-2xl border border-black/8 bg-white p-4">
           <p className="text-[9px] font-black uppercase tracking-[0.16em] text-black/55">Grand Total</p>
           <p className="mt-1.5 text-xl font-black tracking-tight text-black">{formatTaka(totals.grand)}</p>
         </div>
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
-          <p className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-rose-500">
-            <Wallet size={11} /> Leaves Wallet
-          </p>
-          <p className="mt-1.5 text-xl font-black tracking-tight text-rose-600">{formatTaka(totals.wallet)}</p>
-        </div>
-        <div
-          className={`rounded-2xl border p-4 transition-colors duration-300 ${
-            totals.pending > 0 ? "border-amber-200 bg-amber-50" : "border-black/8 bg-white"
-          }`}
-        >
-          <p
-            className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.16em] ${
-              totals.pending > 0 ? "text-amber-600" : "text-black/55"
+        {!billMode ? (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
+            <p className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-rose-500">
+              <Wallet size={11} /> {directEventMode ? "Direct Event Cost" : "Leaves Wallet"}
+            </p>
+            <p className="mt-1.5 text-xl font-black tracking-tight text-rose-600">{formatTaka(totals.wallet)}</p>
+          </div>
+        ) : null}
+        {!directEventMode ? (
+          <div
+            className={`rounded-2xl border p-4 transition-colors duration-300 ${
+              totals.pending > 0 ? "border-amber-200 bg-amber-50" : "border-black/8 bg-white"
             }`}
           >
-            <Store size={11} /> Owed To Vendors
-          </p>
-          <p
-            className={`mt-1.5 text-xl font-black tracking-tight ${
-              totals.pending > 0 ? "text-amber-700" : "text-black/45"
-            }`}
-          >
-            {formatTaka(totals.pending)}
-          </p>
-        </div>
+            <p
+              className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.16em] ${
+                totals.pending > 0 ? "text-amber-600" : "text-black/55"
+              }`}
+            >
+              <Store size={11} /> {billMode ? "Bill Amount (Owed to Vendor)" : "Owed To Vendors"}
+            </p>
+            <p
+              className={`mt-1.5 text-xl font-black tracking-tight ${
+                totals.pending > 0 ? "text-amber-700" : "text-black/45"
+              }`}
+            >
+              {formatTaka(totals.pending)}
+            </p>
+          </div>
+        ) : null}
       </div>
     </div>
   );
