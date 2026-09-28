@@ -1,6 +1,9 @@
 import MaterialIcons
   from '@expo/vector-icons/MaterialIcons';
 
+import DateTimePicker
+  from '@react-native-community/datetimepicker';
+
 import {
   useRouter,
 } from 'expo-router';
@@ -67,6 +70,10 @@ import {
   Brand,
 } from '@/constants/theme';
 
+import {
+  toDateInputString,
+} from '@/utils/dates';
+
 const EMPTY = {
   search: '',
   paymentStatus: '',
@@ -74,6 +81,78 @@ const EMPTY = {
   dateFrom: '',
   dateTo: '',
 };
+
+function pickerDateFromValue(value) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+  if (!match) {
+    return new Date();
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const parsed = new Date(year, month - 1, day);
+
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+function DatePickerInput({
+  label,
+  value,
+  onChange,
+  minimumDate,
+  maximumDate,
+}) {
+  const [showPicker, setShowPicker] = useState(false);
+
+  function handleDateChange(event, selectedDate) {
+    setShowPicker(false);
+
+    if (event?.type === 'dismissed' || !selectedDate) {
+      return;
+    }
+
+    onChange(toDateInputString(selectedDate));
+  }
+
+  return (
+    <View>
+      <Pressable
+        accessibilityRole='button'
+        accessibilityLabel={`Select ${label}`}
+        onPress={() => setShowPicker(true)}
+      >
+        <View pointerEvents='none'>
+          <AppInput
+            label={label}
+            value={value}
+            editable={false}
+            selectTextOnFocus={false}
+            placeholder='YYYY-MM-DD'
+            rightElement={
+              <MaterialIcons
+                name='calendar-month'
+                size={22}
+                color={Brand.plum}
+              />
+            }
+          />
+        </View>
+      </Pressable>
+
+      {showPicker ? (
+        <DateTimePicker
+          value={pickerDateFromValue(value)}
+          mode='date'
+          onChange={handleDateChange}
+          minimumDate={minimumDate}
+          maximumDate={maximumDate}
+        />
+      ) : null}
+    </View>
+  );
+}
 
 export default function MoneyReceiptHistoryScreen() {
   const router =
@@ -495,22 +574,26 @@ export default function MoneyReceiptHistoryScreen() {
               flex: 1,
             }}
           >
-            <AppInput
+            <DatePickerInput
               label="From"
               value={
                 filters.dateFrom
               }
-              onChangeText={(v) =>
+              onChange={(value) =>
                 setFilters(
-                  (f) => ({
-                    ...f,
-
-                    dateFrom:
-                      v,
+                  (current) => ({
+                    ...current,
+                    dateFrom: value,
                   }),
                 )
               }
-              placeholder="YYYY-MM-DD"
+              maximumDate={
+                filters.dateTo
+                  ? pickerDateFromValue(
+                      filters.dateTo,
+                    )
+                  : undefined
+              }
             />
           </View>
 
@@ -519,22 +602,26 @@ export default function MoneyReceiptHistoryScreen() {
               flex: 1,
             }}
           >
-            <AppInput
+            <DatePickerInput
               label="To"
               value={
                 filters.dateTo
               }
-              onChangeText={(v) =>
+              onChange={(value) =>
                 setFilters(
-                  (f) => ({
-                    ...f,
-
-                    dateTo:
-                      v,
+                  (current) => ({
+                    ...current,
+                    dateTo: value,
                   }),
                 )
               }
-              placeholder="YYYY-MM-DD"
+              minimumDate={
+                filters.dateFrom
+                  ? pickerDateFromValue(
+                      filters.dateFrom,
+                    )
+                  : undefined
+              }
             />
           </View>
         </View>

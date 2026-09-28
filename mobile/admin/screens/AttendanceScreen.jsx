@@ -1,6 +1,9 @@
 import MaterialIcons
   from "@expo/vector-icons/MaterialIcons";
 
+import DateTimePicker
+  from "@react-native-community/datetimepicker";
+
 import {
   Linking,
   Modal,
@@ -54,6 +57,82 @@ import LoadingScreen
 import {
   Brand,
 } from "@/constants/theme";
+
+import {
+  toDateInputString,
+} from "@/utils/dates";
+
+function pickerDateFromValue(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+  if (!match) {
+    return new Date();
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const parsed = new Date(year, month - 1, day);
+
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+function DatePickerInput({
+  label,
+  value,
+  onChange,
+  minimumDate,
+  maximumDate,
+}) {
+  const [showPicker, setShowPicker] = useState(false);
+
+  function handleDateChange(event, selectedDate) {
+    setShowPicker(false);
+
+    if (event?.type === "dismissed" || !selectedDate) {
+      return;
+    }
+
+    onChange(toDateInputString(selectedDate));
+  }
+
+  return (
+    <View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Select ${label}`}
+        onPress={() => setShowPicker(true)}
+      >
+        <View pointerEvents="none">
+          <AppInput
+            label={label}
+            value={value}
+            editable={false}
+            selectTextOnFocus={false}
+            placeholder="YYYY-MM-DD"
+            rightElement={
+              <MaterialIcons
+                name="calendar-month"
+                size={22}
+                color={Brand.plum}
+              />
+            }
+          />
+        </View>
+      </Pressable>
+
+      {showPicker ? (
+        <DateTimePicker
+          value={pickerDateFromValue(value)}
+          mode="date"
+          onChange={handleDateChange}
+          minimumDate={minimumDate}
+          maximumDate={maximumDate}
+        />
+      ) : null}
+    </View>
+  );
+}
 
 export default function AttendanceScreen() {
   const [
@@ -387,33 +466,34 @@ export default function AttendanceScreen() {
             }
           />
 
-          <AppInput
+          <DatePickerInput
             label="Exact date"
             value={date}
-            onChangeText={
-              setDate
-            }
-            placeholder="YYYY-MM-DD"
+            onChange={setDate}
           />
 
           {!date ? (
             <>
-              <AppInput
+              <DatePickerInput
                 label="From"
                 value={from}
-                onChangeText={
-                  setFrom
+                onChange={setFrom}
+                maximumDate={
+                  to
+                    ? pickerDateFromValue(to)
+                    : undefined
                 }
-                placeholder="YYYY-MM-DD"
               />
 
-              <AppInput
+              <DatePickerInput
                 label="To"
                 value={to}
-                onChangeText={
-                  setTo
+                onChange={setTo}
+                minimumDate={
+                  from
+                    ? pickerDateFromValue(from)
+                    : undefined
                 }
-                placeholder="YYYY-MM-DD"
               />
             </>
           ) : null}

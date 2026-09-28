@@ -1,6 +1,9 @@
 import MaterialIcons
   from "@expo/vector-icons/MaterialIcons";
 
+import DateTimePicker
+  from "@react-native-community/datetimepicker";
+
 import {
   useRouter,
 } from "expo-router";
@@ -62,6 +65,82 @@ import AppInput
 import {
   Brand,
 } from "@/constants/theme";
+
+import {
+  toDateInputString,
+} from "@/utils/dates";
+
+function pickerDateFromValue(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+  if (!match) {
+    return new Date();
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const parsed = new Date(year, month - 1, day);
+
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+function DatePickerInput({
+  label,
+  value,
+  onChange,
+  minimumDate,
+  maximumDate,
+}) {
+  const [showPicker, setShowPicker] = useState(false);
+
+  function handleDateChange(event, selectedDate) {
+    setShowPicker(false);
+
+    if (event?.type === "dismissed" || !selectedDate) {
+      return;
+    }
+
+    onChange(toDateInputString(selectedDate));
+  }
+
+  return (
+    <View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Select ${label}`}
+        onPress={() => setShowPicker(true)}
+      >
+        <View pointerEvents="none">
+          <AppInput
+            label={label}
+            value={value}
+            editable={false}
+            selectTextOnFocus={false}
+            placeholder="YYYY-MM-DD"
+            rightElement={
+              <MaterialIcons
+                name="calendar-month"
+                size={22}
+                color={Brand.plum}
+              />
+            }
+          />
+        </View>
+      </Pressable>
+
+      {showPicker ? (
+        <DateTimePicker
+          value={pickerDateFromValue(value)}
+          mode="date"
+          onChange={handleDateChange}
+          minimumDate={minimumDate}
+          maximumDate={maximumDate}
+        />
+      ) : null}
+    </View>
+  );
+}
 
 export default function MoneyReceiptScreen() {
   const router =
@@ -307,20 +386,17 @@ export default function MoneyReceiptScreen() {
       <AdminCard
         title="Receipt Information"
       >
-        <AppInput
+        <DatePickerInput
           label="Receipt Date"
           value={
             form.receiptDate
           }
-          onChangeText={(
-            value,
-          ) =>
+          onChange={(value) =>
             update(
               "receiptDate",
               value,
             )
           }
-          placeholder="YYYY-MM-DD"
         />
 
         <AppInput
@@ -511,20 +587,17 @@ export default function MoneyReceiptScreen() {
           }
         />
 
-        <AppInput
+        <DatePickerInput
           label="Event Date"
           value={
             form.eventDate
           }
-          onChangeText={(
-            value,
-          ) =>
+          onChange={(value) =>
             update(
               "eventDate",
               value,
             )
           }
-          placeholder="YYYY-MM-DD"
         />
 
         <AppInput
