@@ -68,7 +68,6 @@ model Employee {
   uploadedPdfDocumentImages PdfDocumentItemImage[] @relation("PdfDocumentImageUploadedBy")
   pdfDocumentImports        PdfDocumentImport[]    @relation("PdfDocumentImportImportedBy")
   moneyReceipts            MoneyReceipt[]
-  attendances              Attendance[]
 
   @@index([createdById], map: "fk_emp_created_by")
   @@index([roleId], map: "fk_emp_role")

@@ -4,11 +4,6 @@ import {
   ApiError,
 } from "@/services/api/client";
 
-import {
-  getAccessToken,
-  removeAccessToken,
-} from "@/services/storage/authStorage";
-
 function queryString(params = {}) {
   const entries = Object.entries(params).filter(
     ([, value]) =>
@@ -118,72 +113,12 @@ export const fetchAdminCalendarMonth = (year, month) =>
   apiRequest(`/admin/calendar?year=${year}&month=${month}`);
 
 /* =========================
-   MOBILE ADMIN BACKEND :5001
-   Financial Accounts + Money Receipts
+   SHARED WEBSITE BACKEND :5000
+   FINANCIAL ACCOUNTS
    ========================= */
 
-const MOBILE_ADMIN_API_URL = String(
-  process.env.EXPO_PUBLIC_ADMIN_API_URL || "",
-).replace(/\/$/, "");
-
-async function mobileAdminFetch(path, options = {}) {
-  if (!MOBILE_ADMIN_API_URL) {
-    throw new Error(
-      "EXPO_PUBLIC_ADMIN_API_URL is not configured in mobile/.env.",
-    );
-  }
-
-  const token = await getAccessToken();
-  const isFormData =
-    typeof FormData !== "undefined" &&
-    options.body instanceof FormData;
-
-  const headers = {
-    Accept: "application/json",
-    ...(options.body && !isFormData
-      ? { "Content-Type": "application/json" }
-      : {}),
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(options.headers || {}),
-  };
-
-  let response;
-  try {
-    response = await fetch(`${MOBILE_ADMIN_API_URL}${path}`, {
-      ...options,
-      headers,
-    });
-  } catch {
-    throw new Error(
-      "Could not connect to the Mobile Admin backend. Make sure port 5001 is running and the phone can reach your PC.",
-    );
-  }
-
-  if (response.status === 401) {
-    await removeAccessToken();
-  }
-
-  return response;
-}
-
-async function mobileAdminRequest(path, options = {}) {
-  const response = await mobileAdminFetch(path, options);
-  const payload = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new ApiError(
-      payload.message || `Request failed (${response.status}).`,
-      response.status,
-      payload.code || null,
-      payload,
-    );
-  }
-
-  return payload.data ?? payload;
-}
-
 const accounts = (path, options) =>
-  mobileAdminRequest(`/admin/accounts${path}`, options);
+  apiRequest(`/admin/accounts${path}`, options);
 
 export const loadEmployeeWallets = () =>
   accounts("/employees");
@@ -275,11 +210,12 @@ export const addDirectVendorPayment = (id, payload) =>
   });
 
 /* =========================
-   MONEY RECEIPTS — ALSO :5001
+   MONEY RECEIPTS
+   SHARED WEBSITE BACKEND :5000
    ========================= */
 
 const receipts = (path, options) =>
-  mobileAdminRequest(`/admin/money-receipts${path}`, options);
+  apiRequest(`/admin/money-receipts${path}`, options);
 
 export const createMoneyReceipt = (payload) =>
   receipts("", {
@@ -302,7 +238,7 @@ export const archiveMoneyReceipt = (id) =>
   });
 
 export const previewMoneyReceiptResponse = (payload) =>
-  mobileAdminFetch("/admin/money-receipts/preview", {
+  apiFetch("/admin/money-receipts/preview", {
     method: "POST",
     headers: {
       Accept: "application/pdf",
@@ -310,19 +246,24 @@ export const previewMoneyReceiptResponse = (payload) =>
     body: JSON.stringify(payload),
   }).then(async (response) => {
     if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
+      const payload = await response
+        .json()
+        .catch(() => ({}));
+
       throw new ApiError(
-        payload.message || `Request failed (${response.status}).`,
+        payload.message ||
+          `Request failed (${response.status}).`,
         response.status,
         payload.code || null,
         payload,
       );
     }
+
     return response;
   });
 
 export const downloadMoneyReceiptResponse = (id) =>
-  mobileAdminFetch(
+  apiFetch(
     `/admin/money-receipts/${encodeURIComponent(id)}/download`,
     {
       headers: {
@@ -331,13 +272,18 @@ export const downloadMoneyReceiptResponse = (id) =>
     },
   ).then(async (response) => {
     if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
+      const payload = await response
+        .json()
+        .catch(() => ({}));
+
       throw new ApiError(
-        payload.message || `Request failed (${response.status}).`,
+        payload.message ||
+          `Request failed (${response.status}).`,
         response.status,
         payload.code || null,
         payload,
       );
     }
+
     return response;
   });

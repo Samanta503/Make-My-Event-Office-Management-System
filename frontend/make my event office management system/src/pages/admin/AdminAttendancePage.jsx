@@ -1,34 +1,39 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import {
+  Activity,
+  AlertCircle,
+  Calendar,
+  CheckCircle2,
+  ChevronDown,
   Clock,
   Eye,
-  MapPin,
-  X,
-  Calendar,
   Filter,
-  CheckCircle2,
-  AlertCircle,
-  Search,
-  ChevronDown,
-  Activity,
-  Timer,
   LogIn,
   LogOut,
+  MapPin,
+  Search,
+  Timer,
+  X,
 } from "lucide-react";
-import { ChevronDown, Clock, MapPin } from "lucide-react";
 
 import AdminLayout from "../../components/AdminLayout";
-import { adminLogout, fetchAdminMe, fetchAllEmployees } from "../../services/adminService";
+import {
+  adminLogout,
+  fetchAdminMe,
+  fetchAllEmployees,
+} from "../../services/adminService";
 import { fetchAdminAttendance } from "../../services/adminAttendanceService";
 
 function formatDisplayTime(dbDateTime) {
   if (!dbDateTime) return "—";
 
-  const [datePart, timePart] = dbDateTime.split(" ");
-  const date = new Date(`${datePart}T${timePart || "00:00:00"}`);
+  const normalized = String(dbDateTime).includes("T")
+    ? String(dbDateTime)
+    : String(dbDateTime).replace(" ", "T");
 
-  if (Number.isNaN(date.getTime())) return dbDateTime;
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return String(dbDateTime);
 
   return date.toLocaleTimeString("en-GB", {
     hour: "2-digit",
@@ -38,8 +43,9 @@ function formatDisplayTime(dbDateTime) {
 
 function formatDisplayDate(dbDate) {
   if (!dbDate) return "—";
+
   const date = new Date(dbDate);
-  if (Number.isNaN(date.getTime())) return dbDate;
+  if (Number.isNaN(date.getTime())) return String(dbDate);
 
   return date.toLocaleDateString("en-GB", {
     day: "2-digit",
@@ -51,8 +57,11 @@ function formatDisplayDate(dbDate) {
 function formatWorkHours(minutes) {
   if (minutes === null || minutes === undefined) return "—";
 
-  const hours = Math.floor(minutes / 60);
-  const mins = Math.round(minutes % 60);
+  const numericMinutes = Number(minutes);
+  if (!Number.isFinite(numericMinutes)) return "—";
+
+  const hours = Math.floor(numericMinutes / 60);
+  const mins = Math.round(numericMinutes % 60);
 
   if (hours === 0) return `${mins}m`;
   if (mins === 0) return `${hours}h`;
@@ -61,8 +70,11 @@ function formatWorkHours(minutes) {
 
 function getInitials(name) {
   if (!name) return "?";
-  return name
-    .split(" ")
+
+  return String(name)
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
     .map((part) => part[0])
     .slice(0, 2)
     .join("")
@@ -71,6 +83,7 @@ function getInitials(name) {
 
 function getAvatarColor(name) {
   if (!name) return "bg-slate-400";
+
   const colors = [
     "bg-gradient-to-br from-purple-500 to-pink-500",
     "bg-gradient-to-br from-blue-500 to-cyan-500",
@@ -79,37 +92,54 @@ function getAvatarColor(name) {
     "bg-gradient-to-br from-indigo-500 to-purple-500",
     "bg-gradient-to-br from-pink-500 to-rose-500",
   ];
-  const index = name.charCodeAt(0) % colors.length;
-  return colors[index];
+
+  return colors[String(name).charCodeAt(0) % colors.length];
 }
 
-function getLocationLabel(insideOffice, hasLocation, actionCompleted = true) {
+function hasCoordinates(latitude, longitude) {
+  return (
+    latitude !== null &&
+    latitude !== undefined &&
+    longitude !== null &&
+    longitude !== undefined
+  );
+}
+
+function getLocationLabel(insideOffice, locationAvailable, actionCompleted = true) {
   if (!actionCompleted) return "Pending";
-  if (!hasLocation) return "No GPS Data";
+  if (!locationAvailable) return "No GPS Data";
   if (insideOffice === true) return "In Office";
   if (insideOffice === false) return "Remote";
   return "Captured";
 }
 
-function getLocationBadgeClass(insideOffice, hasLocation, actionCompleted = true) {
+function getLocationBadgeClass(
+  insideOffice,
+  locationAvailable,
+  actionCompleted = true,
+) {
   if (!actionCompleted) {
     return "border-slate-200 bg-slate-100 text-slate-500";
   }
-  if (!hasLocation) {
+
+  if (!locationAvailable) {
     return "border-amber-200 bg-amber-50 text-amber-700";
   }
+
   if (insideOffice === true) {
     return "border-emerald-200 bg-emerald-50 text-emerald-700";
   }
+
   if (insideOffice === false) {
     return "border-red-200 bg-red-50 text-red-700";
   }
+
   return "border-blue-200 bg-blue-50 text-blue-700";
 }
 
-function getLocationIcon(insideOffice, hasLocation, actionCompleted = true) {
+function getLocationIcon(insideOffice, locationAvailable, actionCompleted = true) {
   if (!actionCompleted) return <Clock size={11} />;
-  if (!hasLocation) return <AlertCircle size={11} />;
+  if (!locationAvailable) return <AlertCircle size={11} />;
   if (insideOffice === true) return <CheckCircle2 size={11} />;
   return <MapPin size={11} />;
 }
@@ -124,9 +154,12 @@ function LocationCell({
   actionLabel,
   icon: ActionIcon,
 }) {
-  const hasLocation =
-    latitude !== null && latitude !== undefined && longitude !== null && longitude !== undefined;
-  const label = getLocationLabel(insideOffice, hasLocation, actionCompleted);
+  const locationAvailable = hasCoordinates(latitude, longitude);
+  const label = getLocationLabel(
+    insideOffice,
+    locationAvailable,
+    actionCompleted,
+  );
 
   if (!actionCompleted) {
     return (
@@ -134,12 +167,15 @@ function LocationCell({
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
           <ActionIcon size={15} />
         </div>
+
         <div className="min-w-0">
           <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
             <Clock size={10} />
             Pending
           </span>
-          <p className="mt-1 text-[11px] font-bold text-slate-400">Not recorded</p>
+          <p className="mt-1 text-[11px] font-bold text-slate-400">
+            Not recorded
+          </p>
         </div>
       </div>
     );
@@ -152,26 +188,31 @@ function LocationCell({
           insideOffice === true
             ? "bg-emerald-50 text-emerald-600"
             : insideOffice === false
-            ? "bg-red-50 text-red-600"
-            : "bg-mme-blush/30 text-mme-purple"
+              ? "bg-red-50 text-red-600"
+              : "bg-mme-blush/30 text-mme-purple"
         }`}
       >
         <ActionIcon size={15} />
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <span className="text-sm font-black text-mme-purple">{formatDisplayTime(actionAt)}</span>
-        </div>
+        <span className="text-sm font-black text-mme-purple">
+          {formatDisplayTime(actionAt)}
+        </span>
+
         <div className="mt-0.5 flex items-center gap-1.5">
           <span
             className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${getLocationBadgeClass(
               insideOffice,
-              hasLocation,
+              locationAvailable,
               actionCompleted,
             )}`}
           >
-            {getLocationIcon(insideOffice, hasLocation, actionCompleted)}
+            {getLocationIcon(
+              insideOffice,
+              locationAvailable,
+              actionCompleted,
+            )}
             {label}
           </span>
         </div>
@@ -180,76 +221,17 @@ function LocationCell({
       <button
         type="button"
         onClick={onView}
-        disabled={!hasLocation}
-        title={hasLocation ? `View ${actionLabel.toLowerCase()} location` : "Location unavailable"}
+        disabled={!locationAvailable}
+        title={
+          locationAvailable
+            ? `View ${actionLabel.toLowerCase()} location`
+            : "Location unavailable"
+        }
         aria-label={`View ${actionLabel.toLowerCase()} location`}
         className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-mme-pink/60 bg-white text-mme-purple transition hover:border-mme-purple hover:bg-mme-purple hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-white disabled:hover:text-mme-purple"
       >
         <Eye size={14} />
       </button>
-function formatDisplayDateTime(dbDateTime) {
-  if (!dbDateTime) return "—";
-  const [datePart, timePart] = dbDateTime.split(" ");
-  const date = new Date(`${datePart}T${timePart || "00:00:00"}`);
-  if (Number.isNaN(date.getTime())) return dbDateTime;
-  return date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-}
-
-function formatDuration(minutes) {
-  if (minutes === null || minutes === undefined) return "—";
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${hours}h ${mins}m`;
-}
-
-const STATUS_LABELS = {
-  working: "Working",
-  completed: "Completed",
-  absent: "Absent",
-};
-
-// Guide section 34: this is the device's reported location at the moment of
-// the action, not guaranteed proof of physical office presence — labels
-// stick to "Sign In/Out Location" + "GPS Accuracy", never "Verified Presence".
-function LocationDetail({ label, latitude, longitude, accuracy, distanceFromOffice, insideOffice }) {
-  if (latitude === null || longitude === null) {
-    return <p className="text-xs italic text-mme-purple/40">No {label.toLowerCase()} recorded.</p>;
-  }
-  return (
-    <div className="rounded-xl border border-mme-pink/40 bg-[#fff9fc] p-3">
-      <p className="text-[10px] font-black uppercase tracking-wide text-mme-purple/50">{label}</p>
-      {insideOffice !== null && insideOffice !== undefined ? (
-        <p
-          className={`mt-1 text-xs font-black ${
-            insideOffice ? "text-green-700" : "text-red-700"
-          }`}
-        >
-          {insideOffice ? "Inside MakeMyEvent Office" : "Outside MakeMyEvent Office"}
-          {distanceFromOffice !== null && distanceFromOffice !== undefined ? (
-            <span className="ml-2 font-bold text-mme-purple/70">
-              {"\u00b7"} Distance from Office: {distanceFromOffice} m
-            </span>
-          ) : null}
-        </p>
-      ) : null}
-      <p className="mt-1 text-xs text-mme-purple/80">
-        Latitude: <span className="font-bold">{latitude}</span> {"\u00b7"} Longitude:{" "}
-        <span className="font-bold">{longitude}</span>
-        {accuracy !== null ? (
-          <>
-            {" "}
-            {"\u00b7"} GPS Accuracy: <span className="font-bold">{"\u00b1"}{accuracy} m</span>
-          </>
-        ) : null}
-      </p>
-      <a
-        href={`https://www.google.com/maps?q=${latitude},${longitude}`}
-        target="_blank"
-        rel="noreferrer"
-        className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-mme-pink/70 bg-white px-2.5 py-1 text-[11px] font-black text-mme-purple transition hover:bg-mme-blush/40"
-      >
-        <MapPin size={11} /> Open Map
-      </a>
     </div>
   );
 }
@@ -269,8 +251,7 @@ function LocationModal({ location, onClose }) {
     insideOffice,
   } = location;
 
-  const hasCoordinates =
-    latitude !== null && latitude !== undefined && longitude !== null && longitude !== undefined;
+  const locationAvailable = hasCoordinates(latitude, longitude);
 
   return (
     <div
@@ -279,20 +260,22 @@ function LocationModal({ location, onClose }) {
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+      <div className="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl">
         <div className="relative overflow-hidden bg-gradient-to-br from-mme-purple to-purple-700 px-6 py-5">
           <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
           <div className="absolute -bottom-4 -left-4 h-24 w-24 rounded-full bg-mme-pink/20 blur-xl" />
 
           <div className="relative flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm ring-1 ring-white/20">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/20 backdrop-blur-sm">
                 <MapPin size={20} className="text-white" />
               </div>
+
               <div>
                 <h2 className="text-lg font-black text-white">{title}</h2>
                 <p className="mt-0.5 text-xs font-bold text-white/70">
-                  {employeeName || "Unknown employee"} · {formatDisplayDate(attendanceDate)}
+                  {employeeName || "Unknown employee"} ·{" "}
+                  {formatDisplayDate(attendanceDate)}
                 </p>
               </div>
             </div>
@@ -314,26 +297,28 @@ function LocationModal({ location, onClose }) {
               insideOffice === true
                 ? "border-emerald-200 bg-emerald-50/50"
                 : insideOffice === false
-                ? "border-red-200 bg-red-50/50"
-                : "border-amber-200 bg-amber-50/50"
+                  ? "border-red-200 bg-red-50/50"
+                  : "border-amber-200 bg-amber-50/50"
             }`}
           >
             <p className="text-[10px] font-black uppercase tracking-[0.12em] text-mme-purple/50">
               Location Status
             </p>
+
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <span
                 className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-black ${getLocationBadgeClass(
                   insideOffice,
-                  hasCoordinates,
+                  locationAvailable,
                   true,
                 )}`}
               >
-                {getLocationIcon(insideOffice, hasCoordinates, true)}
-                {getLocationLabel(insideOffice, hasCoordinates, true)}
+                {getLocationIcon(insideOffice, locationAvailable, true)}
+                {getLocationLabel(insideOffice, locationAvailable, true)}
               </span>
 
-              {distanceFromOffice !== null && distanceFromOffice !== undefined ? (
+              {distanceFromOffice !== null &&
+              distanceFromOffice !== undefined ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-black text-mme-purple shadow-sm">
                   <Activity size={11} />
                   {distanceFromOffice} m from office
@@ -363,7 +348,9 @@ function LocationModal({ location, onClose }) {
                 </p>
               </div>
               <p className="mt-1.5 text-base font-black text-mme-purple">
-                {accuracy !== null && accuracy !== undefined ? `±${accuracy} m` : "—"}
+                {accuracy !== null && accuracy !== undefined
+                  ? `±${accuracy} m`
+                  : "—"}
               </p>
             </div>
 
@@ -386,14 +373,17 @@ function LocationModal({ location, onClose }) {
             </div>
           </div>
 
-          {hasCoordinates ? (
+          {locationAvailable ? (
             <a
               href={`https://www.google.com/maps?q=${latitude},${longitude}`}
               target="_blank"
               rel="noreferrer"
-              className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-mme-purple to-purple-700 px-4 py-3 text-sm font-black text-white shadow-sm transition hover:shadow-lg hover:-translate-y-0.5"
+              className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-mme-purple to-purple-700 px-4 py-3 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
             >
-              <MapPin size={15} className="transition-transform group-hover:scale-110" />
+              <MapPin
+                size={15}
+                className="transition-transform group-hover:scale-110"
+              />
               Open Location in Google Maps
             </a>
           ) : (
@@ -404,57 +394,13 @@ function LocationModal({ location, onClose }) {
           )}
         </div>
       </div>
-function AttendanceRow({ record }) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div className="rounded-2xl border border-mme-pink/50 bg-white transition hover:border-mme-pink hover:shadow-sm">
-      <button
-        onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left"
-      >
-        <div className="min-w-0">
-          <p className="truncate font-black text-mme-purple">{record.employeeName || "Unknown employee"}</p>
-          <p className="text-xs text-mme-purple/60">{record.attendanceDate}</p>
-        </div>
-        <div className="flex shrink-0 items-center gap-4">
-          <div className="hidden text-right text-xs text-mme-purple/70 sm:block">
-            <p>In {formatDisplayDateTime(record.signInAt)} {"\u2192"} Out {formatDisplayDateTime(record.signOutAt)}</p>
-            <p className="font-bold text-mme-purple">{formatDuration(record.durationMinutes)}</p>
-          </div>
-          <span className="rounded-full bg-mme-blush/50 px-2.5 py-1 text-[11px] font-black text-mme-purple">
-            {STATUS_LABELS[record.status] || record.status}
-          </span>
-          <ChevronDown size={16} className={`text-mme-purple/50 transition-transform ${expanded ? "rotate-180" : ""}`} />
-        </div>
-      </button>
-
-      {expanded && (
-        <div className="grid gap-3 border-t border-mme-pink/30 px-4 py-3.5 sm:grid-cols-2">
-          <LocationDetail
-            label="Sign In Location"
-            latitude={record.signInLatitude}
-            longitude={record.signInLongitude}
-            accuracy={record.signInAccuracy}
-            distanceFromOffice={record.signInDistanceFromOffice}
-            insideOffice={record.signInInsideOffice}
-          />
-          <LocationDetail
-            label="Sign Out Location"
-            latitude={record.signOutLatitude}
-            longitude={record.signOutLongitude}
-            accuracy={record.signOutAccuracy}
-            distanceFromOffice={record.signOutDistanceFromOffice}
-            insideOffice={record.signOutInsideOffice}
-          />
-        </div>
-      )}
     </div>
   );
 }
 
 export default function AdminAttendancePage() {
   const navigate = useNavigate();
+
   const [admin, setAdmin] = useState(null);
   const [checkingSession, setCheckingSession] = useState(true);
   const [employees, setEmployees] = useState([]);
@@ -470,28 +416,64 @@ export default function AdminAttendancePage() {
   const [dateTo, setDateTo] = useState("");
 
   useEffect(() => {
+    let active = true;
+
     fetchAdminMe()
       .then((me) => {
-        if (!me) return navigate("/admin/login", { replace: true });
+        if (!active) return;
+
+        if (!me) {
+          navigate("/admin/login", { replace: true });
+          return;
+        }
+
         setAdmin(me);
       })
-      .finally(() => setCheckingSession(false));
+      .catch((error) => {
+        if (!active) return;
+        setNotice({
+          type: "error",
+          message: error?.message || "Unable to verify admin session.",
+        });
+        navigate("/admin/login", { replace: true });
+      })
+      .finally(() => {
+        if (active) setCheckingSession(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [navigate]);
 
   useEffect(() => {
-    if (!admin) return;
+    if (!admin) return undefined;
+
+    let active = true;
 
     fetchAllEmployees()
-      .then((data) => setEmployees(data.filter((employee) => employee.isActive)))
-      .catch((error) => setNotice({ type: "error", message: error.message }));
-    fetchAllEmployees()
-      .then((data) => setEmployees(data.filter((e) => e.isActive)))
-      .catch((err) => setNotice({ type: "error", message: err.message }));
+      .then((data) => {
+        if (!active) return;
+        const list = Array.isArray(data) ? data : [];
+        setEmployees(list.filter((employee) => employee.isActive));
+      })
+      .catch((error) => {
+        if (!active) return;
+        setNotice({
+          type: "error",
+          message: error?.message || "Unable to load employees.",
+        });
+      });
+
+    return () => {
+      active = false;
+    };
   }, [admin]);
 
   useEffect(() => {
-    if (!admin) return;
+    if (!admin) return undefined;
 
+    let active = true;
     setIsLoading(true);
 
     fetchAdminAttendance({
@@ -500,55 +482,67 @@ export default function AdminAttendancePage() {
       from: date ? "" : dateFrom,
       to: date ? "" : dateTo,
     })
-      .then(setRecords)
-      .catch((error) => setNotice({ type: "error", message: error.message }))
-    setIsLoading(true);
-    fetchAdminAttendance({ employeeId, date, from: date ? "" : dateFrom, to: date ? "" : dateTo })
-      .then(setRecords)
-      .catch((err) => setNotice({ type: "error", message: err.message }))
-      .finally(() => setIsLoading(false));
+      .then((data) => {
+        if (!active) return;
+        setRecords(Array.isArray(data) ? data : []);
+      })
+      .catch((error) => {
+        if (!active) return;
+        setNotice({
+          type: "error",
+          message: error?.message || "Unable to load attendance records.",
+        });
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [admin, employeeId, date, dateFrom, dateTo]);
 
   useEffect(() => {
     if (!notice) return undefined;
+
     const timer = setTimeout(() => setNotice(null), 4000);
     return () => clearTimeout(timer);
   }, [notice]);
 
   useEffect(() => {
     if (!selectedLocation) return undefined;
+
     function handleEscape(event) {
       if (event.key === "Escape") setSelectedLocation(null);
     }
+
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
   }, [selectedLocation]);
 
-    const t = setTimeout(() => setNotice(null), 4000);
-    return () => clearTimeout(t);
-  }, [notice]);
+  const filteredRecords = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return records;
 
-  async function handleLogout() {
-    await adminLogout();
-    navigate("/admin/login", { replace: true });
-  }
+    return records.filter((record) =>
+      String(record.employeeName || "")
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [records, searchQuery]);
 
   const hasActiveFilters = useMemo(
     () => Boolean(employeeId || date || dateFrom || dateTo || searchQuery),
     [employeeId, date, dateFrom, dateTo, searchQuery],
   );
 
-  const filteredRecords = useMemo(() => {
-    if (!searchQuery.trim()) return records;
-    const query = searchQuery.toLowerCase();
-    return records.filter((record) =>
-      (record.employeeName || "").toLowerCase().includes(query),
-    );
-  }, [records, searchQuery]);
-
-    () => Boolean(employeeId || date || dateFrom || dateTo),
-    [employeeId, date, dateFrom, dateTo],
-  );
+  async function handleLogout() {
+    try {
+      await adminLogout();
+    } finally {
+      navigate("/admin/login", { replace: true });
+    }
+  }
 
   function clearFilters() {
     setEmployeeId("");
@@ -590,7 +584,6 @@ export default function AdminAttendancePage() {
 
   return (
     <AdminLayout admin={admin} onLogout={handleLogout}>
-      {/* Header */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="relative">
@@ -598,54 +591,49 @@ export default function AdminAttendancePage() {
               <Clock size={22} />
             </div>
             <div className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 ring-2 ring-white">
-              <div className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+              <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
             </div>
           </div>
+
           <div>
             <h1 className="text-2xl font-black tracking-tight text-mme-purple">
               Attendance Management
             </h1>
             <p className="text-sm font-bold text-mme-plum/70">
-              Track employee sign-ins, sign-outs, and work hours in real-time
+              Track employee sign-ins, sign-outs, and work hours
             </p>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-mme-purple text-white">
-            <Clock size={20} />
-          </div>
-          <div>
-            <h1 className="text-xl font-black text-mme-purple">Attendance Management</h1>
-            <p className="text-xs font-bold text-mme-plum">Employee Sign In / Sign Out records</p>
           </div>
         </div>
       </div>
 
-      {/* Notice */}
       {notice ? (
         <div
-          className={`mb-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold shadow-sm animate-in slide-in-from-top duration-300 ${
-      {notice && (
-        <div
-          className={`mb-4 rounded-xl border px-4 py-2.5 text-sm font-bold ${
+          className={`mb-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold shadow-sm ${
             notice.type === "error"
               ? "border-red-200 bg-red-50 text-red-700"
               : "border-mme-pink/50 bg-mme-blush/30 text-mme-purple"
           }`}
         >
-          {notice.type === "error" ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
+          {notice.type === "error" ? (
+            <AlertCircle size={16} />
+          ) : (
+            <CheckCircle2 size={16} />
+          )}
           {notice.message}
         </div>
       ) : null}
 
-      {/* Filters */}
       <div className="mb-5 rounded-2xl border border-mme-pink/50 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-mme-blush/30 text-mme-purple">
               <Filter size={14} />
             </div>
-            <h3 className="text-sm font-black text-mme-purple">Filter Records</h3>
+            <h3 className="text-sm font-black text-mme-purple">
+              Filter Records
+            </h3>
           </div>
+
           {hasActiveFilters ? (
             <button
               type="button"
@@ -659,7 +647,6 @@ export default function AdminAttendancePage() {
         </div>
 
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
-          {/* Search */}
           <div className="lg:col-span-2">
             <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wide text-mme-purple/60">
               Search
@@ -679,7 +666,6 @@ export default function AdminAttendancePage() {
             </div>
           </div>
 
-          {/* Employee */}
           <div>
             <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wide text-mme-purple/60">
               Employee
@@ -704,7 +690,6 @@ export default function AdminAttendancePage() {
             </div>
           </div>
 
-          {/* Date */}
           <div>
             <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wide text-mme-purple/60">
               Specific Date
@@ -717,7 +702,6 @@ export default function AdminAttendancePage() {
             />
           </div>
 
-          {/* Range */}
           <div>
             <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wide text-mme-purple/60">
               Date Range
@@ -729,7 +713,6 @@ export default function AdminAttendancePage() {
                 disabled={Boolean(date)}
                 onChange={(event) => setDateFrom(event.target.value)}
                 className="w-full rounded-lg border border-mme-pink/60 bg-white px-2 py-2 text-xs font-medium text-mme-purple transition focus:border-mme-purple focus:outline-none focus:ring-2 focus:ring-mme-purple/10 disabled:cursor-not-allowed disabled:opacity-40"
-                placeholder="From"
               />
               <input
                 type="date"
@@ -737,18 +720,18 @@ export default function AdminAttendancePage() {
                 disabled={Boolean(date)}
                 onChange={(event) => setDateTo(event.target.value)}
                 className="w-full rounded-lg border border-mme-pink/60 bg-white px-2 py-2 text-xs font-medium text-mme-purple transition focus:border-mme-purple focus:outline-none focus:ring-2 focus:ring-mme-purple/10 disabled:cursor-not-allowed disabled:opacity-40"
-                placeholder="To"
               />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Table */}
       {isLoading ? (
         <div className="rounded-2xl border border-mme-pink/40 bg-white px-4 py-16 text-center shadow-sm">
           <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-mme-pink/30 border-t-mme-purple" />
-          <p className="text-sm font-bold text-mme-purple/60">Loading attendance records...</p>
+          <p className="text-sm font-bold text-mme-purple/60">
+            Loading attendance records...
+          </p>
         </div>
       ) : filteredRecords.length === 0 ? (
         <div className="rounded-2xl border-2 border-dashed border-mme-pink/40 bg-white px-4 py-16 text-center">
@@ -761,6 +744,7 @@ export default function AdminAttendancePage() {
               ? "Try adjusting your filters to see more results."
               : "Attendance records will appear here."}
           </p>
+
           {hasActiveFilters ? (
             <button
               type="button"
@@ -775,11 +759,11 @@ export default function AdminAttendancePage() {
         <div className="overflow-hidden rounded-2xl border border-mme-pink/50 bg-white shadow-sm">
           <div className="border-b border-mme-pink/30 bg-gradient-to-r from-mme-blush/20 to-mme-blush/5 px-5 py-3">
             <p className="text-xs font-black text-mme-purple">
-              Showing{" "}
-              <span className="font-black text-mme-purple">{filteredRecords.length}</span> record
+              Showing {filteredRecords.length} record
               {filteredRecords.length !== 1 ? "s" : ""}
             </p>
           </div>
+
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] border-collapse">
               <thead className="border-b-2 border-mme-pink/40 bg-mme-blush/30">
@@ -810,12 +794,15 @@ export default function AdminAttendancePage() {
 
               <tbody className="divide-y divide-mme-pink/20">
                 {filteredRecords.map((record) => {
-                  const hasSignedIn = Boolean(record.signInAt);
-                  const hasSignedOut = Boolean(record.signOutAt);
-                  const inProgress = hasSignedIn && !hasSignedOut;
+                  const signedIn = Boolean(record.signInAt);
+                  const signedOut = Boolean(record.signOutAt);
+                  const inProgress = signedIn && !signedOut;
 
                   return (
-                    <tr key={record.id} className="group transition hover:bg-mme-blush/10">
+                    <tr
+                      key={record.id}
+                      className="group transition hover:bg-mme-blush/10"
+                    >
                       <td className="px-5 py-4 align-middle">
                         <div className="flex items-center gap-3">
                           <div
@@ -825,12 +812,16 @@ export default function AdminAttendancePage() {
                           >
                             {getInitials(record.employeeName)}
                           </div>
+
                           <div className="min-w-0">
                             <p className="truncate font-black text-mme-purple">
                               {record.employeeName || "Unknown employee"}
                             </p>
                             <div className="mt-0.5 flex items-center gap-1.5">
-                              <Calendar size={10} className="text-mme-purple/40" />
+                              <Calendar
+                                size={10}
+                                className="text-mme-purple/40"
+                              />
                               <p className="text-[11px] font-bold text-mme-purple/50">
                                 {formatDisplayDate(record.attendanceDate)}
                               </p>
@@ -845,7 +836,7 @@ export default function AdminAttendancePage() {
                           latitude={record.signInLatitude}
                           longitude={record.signInLongitude}
                           actionAt={record.signInAt}
-                          actionCompleted={hasSignedIn}
+                          actionCompleted={signedIn}
                           actionLabel="Sign In"
                           icon={LogIn}
                           onView={() => showSignInLocation(record)}
@@ -858,7 +849,7 @@ export default function AdminAttendancePage() {
                           latitude={record.signOutLatitude}
                           longitude={record.signOutLongitude}
                           actionAt={record.signOutAt}
-                          actionCompleted={hasSignedOut}
+                          actionCompleted={signedOut}
                           actionLabel="Sign Out"
                           icon={LogOut}
                           onView={() => showSignOutLocation(record)}
@@ -876,7 +867,10 @@ export default function AdminAttendancePage() {
                           </span>
                         ) : (
                           <div className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-br from-mme-purple/5 to-mme-blush/20 px-3 py-1.5">
-                            <Timer size={12} className="text-mme-purple/60" />
+                            <Timer
+                              size={12}
+                              className="text-mme-purple/60"
+                            />
                             <span className="text-sm font-black text-mme-purple">
                               {formatWorkHours(record.durationMinutes)}
                             </span>
@@ -892,86 +886,10 @@ export default function AdminAttendancePage() {
         </div>
       )}
 
-      <LocationModal location={selectedLocation} onClose={() => setSelectedLocation(null)} />
-    </AdminLayout>
-  );
-}
-          {notice.message}
-        </div>
-      )}
-
-      <div className="mb-5 flex flex-wrap items-end gap-3 rounded-2xl border border-mme-pink/50 bg-white p-4">
-        <div>
-          <label className="mb-1 block text-[11px] font-black uppercase tracking-wide text-mme-purple/60">
-            Employee
-          </label>
-          <select
-            value={employeeId}
-            onChange={(e) => setEmployeeId(e.target.value)}
-            className="rounded-lg border border-mme-pink/60 px-2.5 py-1.5 text-sm text-mme-purple"
-          >
-            <option value="">All employees</option>
-            {employees.map((emp) => (
-              <option key={emp.id} value={emp.id}>
-                {emp.fullName}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-1 block text-[11px] font-black uppercase tracking-wide text-mme-purple/60">Date</label>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="rounded-lg border border-mme-pink/60 px-2.5 py-1.5 text-sm text-mme-purple"
-          />
-        </div>
-
-        <div>
-          <label className="mb-1 block text-[11px] font-black uppercase tracking-wide text-mme-purple/60">From</label>
-          <input
-            type="date"
-            value={dateFrom}
-            disabled={Boolean(date)}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="rounded-lg border border-mme-pink/60 px-2.5 py-1.5 text-sm text-mme-purple disabled:opacity-40"
-          />
-        </div>
-
-        <div>
-          <label className="mb-1 block text-[11px] font-black uppercase tracking-wide text-mme-purple/60">To</label>
-          <input
-            type="date"
-            value={dateTo}
-            disabled={Boolean(date)}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="rounded-lg border border-mme-pink/60 px-2.5 py-1.5 text-sm text-mme-purple disabled:opacity-40"
-          />
-        </div>
-
-        {hasActiveFilters && (
-          <button
-            onClick={clearFilters}
-            className="rounded-lg border border-mme-pink/70 bg-white px-3 py-1.5 text-xs font-black text-mme-purple transition hover:bg-mme-blush/40"
-          >
-            Clear Filters
-          </button>
-        )}
-      </div>
-
-      {isLoading ? (
-        <p className="text-sm text-mme-purple/60">Loading attendance...</p>
-      ) : records.length === 0 ? (
-        <p className="text-sm italic text-mme-purple/40">No attendance records match these filters.</p>
-      ) : (
-        <div className="space-y-3">
-          {records.map((record) => (
-            <AttendanceRow key={record.id} record={record} />
-          ))}
-        </div>
-      )}
+      <LocationModal
+        location={selectedLocation}
+        onClose={() => setSelectedLocation(null)}
+      />
     </AdminLayout>
   );
 }
