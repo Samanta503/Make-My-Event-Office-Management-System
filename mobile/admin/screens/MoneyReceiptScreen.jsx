@@ -15,6 +15,7 @@ import {
 } from "react";
 
 import {
+  Keyboard,
   Pressable,
   StyleSheet,
   Text,
@@ -174,36 +175,54 @@ export default function MoneyReceiptScreen() {
   ] = useState(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     listConfirmedClients()
-      .then((rows) =>
-        setConfirmedClients(
-          Array.isArray(rows)
-            ? rows
-            : [],
-        ),
-      )
-      .catch(() => {});
+      .then((result) => {
+        if (cancelled) {
+          return;
+        }
+
+        const rows =
+          Array.isArray(result)
+            ? result
+            : Array.isArray(result?.data)
+              ? result.data
+              : [];
+
+        setConfirmedClients(rows);
+      })
+      .catch(() => {
+        // Same behavior as the website: autocomplete is helpful,
+        // but a failure to load suggestions must not block the form.
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const suggestions =
     useMemo(() => {
       const term =
-        form.clientName
+        String(
+          form.clientName || "",
+        )
           .trim()
           .toLowerCase();
 
-      return confirmedClients
-        .filter(
-          (client) =>
-            !term ||
-            String(
-              client.clientName ||
-                "",
-            )
-              .toLowerCase()
-              .includes(term),
-        )
-        .slice(0, 8);
+      const matches = term
+        ? confirmedClients.filter(
+            (client) =>
+              String(
+                client?.clientName || "",
+              )
+                .toLowerCase()
+                .includes(term),
+          )
+        : confirmedClients;
+
+      return matches.slice(0, 8);
     }, [
       confirmedClients,
       form.clientName,
@@ -229,24 +248,33 @@ export default function MoneyReceiptScreen() {
   function chooseClient(
     client,
   ) {
+    const normalizedEventDate =
+      client?.eventDate
+        ? String(
+            client.eventDate,
+          ).slice(0, 10)
+        : "";
+
     setForm(
       (current) => ({
         ...current,
 
+        // These are the exact fields populated by the website
+        // Money Receipt Generator when a confirmed client is selected.
         clientName:
-          client.clientName ||
+          client?.clientName ||
           current.clientName,
 
         clientPhone:
-          client.clientPhone ||
+          client?.clientPhone ||
           current.clientPhone,
 
         eventDate:
-          client.eventDate ||
+          normalizedEventDate ||
           current.eventDate,
 
         eventVenue:
-          client.eventVenue ||
+          client?.eventVenue ||
           current.eventVenue,
       }),
     );
@@ -254,6 +282,8 @@ export default function MoneyReceiptScreen() {
     setShowSuggestions(
       false,
     );
+
+    Keyboard.dismiss();
   }
 
   async function preview() {
@@ -433,6 +463,8 @@ export default function MoneyReceiptScreen() {
             )
           }
           placeholder="e.g. John Doe"
+          autoCorrect={false}
+          autoCapitalize="words"
         />
 
         {showSuggestions &&
@@ -451,7 +483,7 @@ export default function MoneyReceiptScreen() {
                   style={
                     styles.suggestion
                   }
-                  onPress={() =>
+                  onPressIn={() =>
                     chooseClient(
                       client,
                     )

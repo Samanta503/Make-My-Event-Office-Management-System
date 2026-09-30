@@ -130,10 +130,19 @@ export default function ExpenseDetailScreen() {
             }),
           ]);
 
-        setExpense(e);
+        // The shared admin API returns:
+        // { expense: { ...serializedExpense } }
+        // The website unwraps this response before rendering. Do the same
+        // here so totals, metadata and item rows use the actual expense.
+        const expenseData =
+          e?.expense ?? e;
+
+        setExpense(
+          expenseData,
+        );
 
         setDraft(
-          (e.items || []).map(
+          (expenseData?.items || []).map(
             (x) => ({
               ...x,
 
