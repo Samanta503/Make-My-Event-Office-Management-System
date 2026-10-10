@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import mmeLogo from "../assets/mme-logo-cropped.png";
 import {
@@ -953,6 +953,7 @@ export default function ManagementPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [savePromptRowCount, setSavePromptRowCount] = useState(0);
   const fileInputRef = useRef(null);
+  const managementTableRef = useRef(null);
   const hasMounted = useRef(false);
   const [rowHeights, setRowHeights] = useState(() => {
     try { return JSON.parse(localStorage.getItem("mme_row_heights_v1") || "{}"); }
@@ -1270,30 +1271,105 @@ const venueFilterOptions = useMemo(() => {
   }
 
   function startColumnResize(e, columnId) {
+    if (e.button !== 0) return;
     e.preventDefault();
-    const col = workspace.columns.find((c) => c.id === columnId);
-    if (!col) return;
-    const startX = e.clientX;
-    const startWidth = col.width;
-    setResizeCursor("col-resize");
-    function onMove(ev) {
-      const newWidth = Math.max(60, startWidth + (ev.clientX - startX));
-      setWorkspace((prev) => ({
-        ...prev,
-        columns: prev.columns.map((c) => (c.id === columnId ? { ...c, width: newWidth } : c)),
-      }));
-    }
-    function onUp() {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-      setResizeCursor(null);
+    e.stopPropagation();
 
-      // Persist per-employee preferred widths immediately after resizing,
-      // so refresh keeps the same layout until the employee changes widths again.
-      saveStoredColumnWidths(employee?.id, workspaceRef.current.columns);
-    }
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
+    const table = managementTableRef.current;
+    const columns = workspaceRef.current.columns;
+    const index = columns.findIndex((column) => column.id === columnId);
+    if (!table || index < 0) return;
+
+    const colElements = table.querySelectorAll("colgroup col");
+    const activeCol = colElements[index + 1]; // The first col is the row-number column.
+    const neighborCol = colElements[index + 2];
+    if (!activeCol) return;
+
+    const minimumWidth = 60;
+    const firstWidth = Math.max(minimumWidth, Number(columns[index].width) || minimumWidth);
+    const hasNeighbor = index + 1 < columns.length && Boolean(neighborCol);
+    const secondWidth = hasNeighbor
+      ? Math.max(minimumWidth, Number(columns[index + 1].width) || minimumWidth)
+      : 0;
+    const startX = e.clientX;
+    const tableWidth = table.getBoundingClientRect().width;
+    const originalInlineWidth = table.style.width;
+    const originalFirstWidth = activeCol.style.width;
+    const originalSecondWidth = hasNeighbor ? neighborCol.style.width : null;
+    let latestX = startX;
+    let nextFirstWidth = firstWidth;
+    let nextSecondWidth = secondWidth;
+    let frameId = null;
+    let finished = false;
+
+    // Matching Log Cost: the right neighbor gives up/takes space as the
+    // dragged column grows/shrinks, instead of relaying out the entire sheet.
+    // The last data column has no data neighbor, so it grows the table instead.
+    const paint = () => {
+      frameId = null;
+      const delta = latestX - startX;
+      const appliedDelta = hasNeighbor
+        ? Math.min(Math.max(delta, minimumWidth - firstWidth), secondWidth - minimumWidth)
+        : Math.max(delta, minimumWidth - firstWidth);
+
+      nextFirstWidth = Math.round(firstWidth + appliedDelta);
+      activeCol.style.width = `${nextFirstWidth}px`;
+
+      if (hasNeighbor) {
+        nextSecondWidth = Math.round(secondWidth - appliedDelta);
+        neighborCol.style.width = `${nextSecondWidth}px`;
+      } else {
+        // Only the final data column can change the total sheet width.
+        table.style.width = `${Math.max(108 + minimumWidth, tableWidth + appliedDelta)}px`;
+      }
+    };
+
+    const move = (event) => {
+      latestX = event.clientX;
+      if (frameId === null) frameId = window.requestAnimationFrame(paint);
+    };
+
+    const finish = (event) => {
+      if (finished) return;
+      finished = true;
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", finish);
+      window.removeEventListener("blur", cancel);
+      if (frameId !== null) window.cancelAnimationFrame(frameId);
+      if (event && Number.isFinite(event.clientX)) latestX = event.clientX;
+      paint();
+
+      const finalFirst = nextFirstWidth;
+      const finalSecond = nextSecondWidth;
+      const updatedColumns = workspaceRef.current.columns.map((column, columnIndex) => {
+        if (columnIndex === index) return { ...column, width: finalFirst };
+        if (hasNeighbor && columnIndex === index + 1) return { ...column, width: finalSecond };
+        return column;
+      });
+      // Keep the ref in sync immediately; React is updated only once per drag.
+      workspaceRef.current = { ...workspaceRef.current, columns: updatedColumns };
+      setWorkspace((previous) => ({ ...previous, columns: updatedColumns }));
+      saveStoredColumnWidths(employee?.id, updatedColumns);
+      setResizeCursor(null);
+    };
+
+    const cancel = () => {
+      if (finished) return;
+      finished = true;
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", finish);
+      window.removeEventListener("blur", cancel);
+      if (frameId !== null) window.cancelAnimationFrame(frameId);
+      activeCol.style.width = originalFirstWidth;
+      if (hasNeighbor) neighborCol.style.width = originalSecondWidth;
+      table.style.width = originalInlineWidth;
+      setResizeCursor(null);
+    };
+
+    setResizeCursor("col-resize");
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", finish);
+    window.addEventListener("blur", cancel);
   }
 
   function startRowResize(e, rowId) {
@@ -2163,14 +2239,29 @@ const venueFilterOptions = useMemo(() => {
               <EmptyState onAddRow={addRow} onUpload={() => fileInputRef.current?.click()} />
             ) : (
               <div className="min-h-[420px] overflow-x-auto">
-                <table className="w-full border-separate border-spacing-0 text-left" style={{ minWidth: "100%" }}>
+                <table
+                  ref={managementTableRef}
+                  className="table-fixed border-separate border-spacing-0 text-left"
+                  style={{
+                    width: `${workspace.columns.reduce(
+                      (total, column) => total + Math.max(60, Number(column.width) || 60),
+                      108,
+                    )}px`,
+                  }}
+                >
+                  <colgroup>
+                    <col style={{ width: "56px" }} />
+                    {workspace.columns.map((column) => (
+                      <col key={column.id} style={{ width: `${Math.max(60, Number(column.width) || 60)}px` }} />
+                    ))}
+                    <col style={{ width: "52px" }} />
+                  </colgroup>
                   <thead>
                     <tr>
                       <th className="sticky left-0 z-30 w-14 min-w-14 border-b-2 border-r border-violet-500/40 bg-gradient-to-b from-[#241b4a] via-[#15122a] to-black px-2 py-3.5 text-center text-[11px] font-black uppercase tracking-wider text-white">#</th>
                       {workspace.columns.map((column) => (
                         <th
                           key={column.id}
-                          style={{ width: column.width, minWidth: column.width }}
                           className="relative border-b-2 border-r border-violet-500/40 bg-gradient-to-b from-[#241b4a] via-[#15122a] to-black px-3 py-3.5 align-top text-[11px] font-black uppercase tracking-wider text-white transition-colors duration-200 hover:from-[#332658]"
                         >
                           <div className="flex items-start justify-between gap-2 pr-1">
@@ -2178,8 +2269,11 @@ const venueFilterOptions = useMemo(() => {
                           </div>
                           <div
                             onMouseDown={(e) => startColumnResize(e, column.id)}
-                            className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize transition-colors duration-150 hover:bg-white/40"
-                          />
+                            title="Drag to resize column"
+                            className="group absolute -right-1 top-0 z-20 flex h-full w-2.5 cursor-col-resize touch-none select-none items-center justify-center"
+                          >
+                            <span className="h-5 w-px bg-white/25 transition-colors duration-150 group-hover:bg-white/80" />
+                          </div>
                         </th>
                       ))}
                       <th className="sticky right-0 z-30 w-[52px] min-w-[52px] border-b-2 border-l border-violet-500/40 bg-gradient-to-b from-[#241b4a] via-[#15122a] to-black px-2 py-3.5 text-center text-[11px] font-black uppercase tracking-wider text-white">Action</th>
@@ -2241,7 +2335,7 @@ const venueFilterOptions = useMemo(() => {
                           {workspace.columns.map((column) => (
                             <td
                               key={column.id}
-                              style={{ width: column.width, minWidth: column.width, ...(rowH ? { height: `${rowH}px` } : {}) }}
+                              style={rowH ? { height: `${rowH}px` } : undefined}
                               className={`border-b border-r ${cellBorder} align-top transition-colors duration-150 ${cellBg}`}
                             >
                               {column.id === "event_date" ? (
