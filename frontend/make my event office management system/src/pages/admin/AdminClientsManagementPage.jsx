@@ -16,6 +16,47 @@ const REFRESH_INTERVAL_MS = 20000;
 // edit — avoids firing a request on every keystroke.
 const CELL_SAVE_DEBOUNCE_MS = 600;
 
+// Admin-side preferences are local to the browser; cell data still uses the existing API.
+const ADMIN_COLUMN_WIDTHS_KEY = "mme_admin_client_column_widths_v1";
+const MIN_COLUMN_WIDTH = 60;
+
+function readAdminColumnWidths() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(ADMIN_COLUMN_WIDTHS_KEY) || "{}");
+    return stored && typeof stored === "object" && !Array.isArray(stored) ? stored : {};
+  } catch {
+    return {};
+  }
+}
+
+function applyAdminColumnWidths(columns) {
+  const stored = readAdminColumnWidths();
+  return columns.map((column) => {
+    const saved = Number(stored[column.id]);
+    const fallback = Number(column.width);
+    return {
+      ...column,
+      width: Number.isFinite(saved) && saved >= MIN_COLUMN_WIDTH
+        ? saved
+        : Number.isFinite(fallback) && fallback >= MIN_COLUMN_WIDTH
+          ? fallback
+          : 140,
+    };
+  });
+}
+
+function persistAdminColumnWidths(columns) {
+  try {
+    localStorage.setItem(
+      ADMIN_COLUMN_WIDTHS_KEY,
+      JSON.stringify(Object.fromEntries(columns.map((column) => [column.id, column.width]))),
+    );
+  } catch {
+    // Local storage may be unavailable; resizing still works for this session.
+  }
+}
+
+
 function formatMeetingTimeDisplay(value, emptyLabel) {
   if (!value) return emptyLabel;
   const date = new Date(String(value).replace(" ", "T"));
@@ -392,6 +433,30 @@ export default function AdminClientsManagementPage() {
   const hoverHideTimeout = useRef(null);
   const pendingEditsRef = useRef(new Map()); // rowId -> Map<columnId, value not yet confirmed saved>
   const saveTimersRef = useRef(new Map()); // "rowId:columnId" -> debounce timeout id
+  const tableRef = useRef(null);
+  const workspaceRef = useRef(null);
+  const resizeCleanupRef = useRef(null);
+  const [isResizingColumn, setIsResizingColumn] = useState(false);
+
+  // Keep event handlers informed of the latest committed widths, without
+  // causing the sheet to rerender on every pixel of a drag.
+  useEffect(() => {
+    workspaceRef.current = workspace;
+  }, [workspace]);
+
+  useEffect(() => {
+    return () => resizeCleanupRef.current?.();
+  }, []);
+
+  useEffect(() => {
+    document.body.style.cursor = isResizingColumn ? "col-resize" : "";
+    document.body.style.userSelect = isResizingColumn ? "none" : "";
+    return () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isResizingColumn]);
+
 
   useEffect(() => {
     fetchAdminMe()
@@ -417,7 +482,12 @@ export default function AdminClientsManagementPage() {
       if (showSpinner) setIsLoading(true);
       try {
         const data = await fetchAdminWorkspace();
-        if (!cancelled) setWorkspace(mergeWithPendingEdits(data, pendingEditsRef.current));
+        if (!cancelled) {
+          setWorkspace(mergeWithPendingEdits(
+            { ...data, columns: applyAdminColumnWidths(data.columns) },
+            pendingEditsRef.current,
+          ));
+        }
       } catch (error) {
         if (!cancelled) setNotice({ type: "error", message: error.message });
       } finally {
@@ -483,6 +553,106 @@ export default function AdminClientsManagementPage() {
       }
     }, CELL_SAVE_DEBOUNCE_MS);
     saveTimersRef.current.set(timerKey, timer);
+  }
+
+  function startColumnResize(event, columnId) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const table = tableRef.current;
+    const columns = workspaceRef.current?.columns || [];
+    const index = columns.findIndex((column) => column.id === columnId);
+    if (!table || index === -1) return;
+
+    const colElements = table.querySelectorAll("colgroup col");
+    const firstCol = colElements[index];
+    const secondCol = colElements[index + 1];
+    const hasNeighbor = index + 1 < columns.length && Boolean(secondCol);
+    if (!firstCol) return;
+
+    // Match the employee sheet: trade space with the column to the right.
+    // The final column is allowed to increase the total sheet width.
+    const firstStart = Math.max(MIN_COLUMN_WIDTH, Number(columns[index].width) || 140);
+    const secondStart = hasNeighbor
+      ? Math.max(MIN_COLUMN_WIDTH, Number(columns[index + 1].width) || 140)
+      : 0;
+    const startX = event.clientX;
+    const startingTableWidth = columns.reduce((total, column) => total + column.width, 0);
+    const previousTableWidth = table.style.width;
+    const previousFirstWidth = firstCol.style.width;
+    const previousSecondWidth = hasNeighbor ? secondCol.style.width : null;
+    let latestX = startX;
+    let firstWidth = firstStart;
+    let secondWidth = secondStart;
+    let animationId = null;
+    let finished = false;
+
+    function paint() {
+      animationId = null;
+      const delta = latestX - startX;
+      const adjusted = hasNeighbor
+        ? Math.max(MIN_COLUMN_WIDTH - firstStart, Math.min(delta, secondStart - MIN_COLUMN_WIDTH))
+        : Math.max(MIN_COLUMN_WIDTH - firstStart, delta);
+
+      firstWidth = Math.round(firstStart + adjusted);
+      firstCol.style.width = `${firstWidth}px`;
+      if (hasNeighbor) {
+        secondWidth = Math.round(secondStart - adjusted);
+        secondCol.style.width = `${secondWidth}px`;
+      } else {
+        table.style.width = `${startingTableWidth + firstWidth - firstStart}px`;
+      }
+    }
+
+    function onMove(moveEvent) {
+      latestX = moveEvent.clientX;
+      if (animationId === null) animationId = window.requestAnimationFrame(paint);
+    }
+
+    function removeListeners() {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      window.removeEventListener("blur", cancel);
+      if (animationId !== null) window.cancelAnimationFrame(animationId);
+      animationId = null;
+      resizeCleanupRef.current = null;
+    }
+
+    function onUp(upEvent) {
+      if (finished) return;
+      finished = true;
+      removeListeners();
+      if (Number.isFinite(upEvent?.clientX)) latestX = upEvent.clientX;
+      paint();
+
+      const updatedColumns = (workspaceRef.current?.columns || []).map((column, position) => {
+        if (position === index) return { ...column, width: firstWidth };
+        if (hasNeighbor && position === index + 1) return { ...column, width: secondWidth };
+        return column;
+      });
+      workspaceRef.current = { ...workspaceRef.current, columns: updatedColumns };
+      persistAdminColumnWidths(updatedColumns);
+      setWorkspace((current) => current ? { ...current, columns: updatedColumns } : current);
+      setIsResizingColumn(false);
+    }
+
+    function cancel() {
+      if (finished) return;
+      finished = true;
+      removeListeners();
+      firstCol.style.width = previousFirstWidth;
+      if (hasNeighbor) secondCol.style.width = previousSecondWidth;
+      table.style.width = previousTableWidth;
+      setIsResizingColumn(false);
+    }
+
+    resizeCleanupRef.current?.();
+    resizeCleanupRef.current = cancel;
+    setIsResizingColumn(true);
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    window.addEventListener("blur", cancel);
   }
 
   function cancelHoverHide() {
@@ -585,12 +755,28 @@ export default function AdminClientsManagementPage() {
 
           {filteredRows.length ? (
             <div className="overflow-x-auto rounded-3xl border border-mme-pink/60 bg-white shadow-[0_8px_30px_rgba(91,55,101,0.07)]">
-              <table className="w-full min-w-[900px] border-collapse text-sm">
+              <table
+                ref={tableRef}
+                className="table-fixed border-collapse text-sm"
+                style={{ width: `${workspace.columns.reduce((sum, column) => sum + column.width, 0)}px` }}
+              >
+                <colgroup>
+                  {workspace.columns.map((column) => (
+                    <col key={column.id} style={{ width: `${column.width}px` }} />
+                  ))}
+                </colgroup>
                 <thead>
                   <tr className="border-b border-mme-pink/50 bg-[#fff9fc] text-left text-[11px] font-black uppercase tracking-[0.1em] text-mme-plum">
                     {workspace.columns.map((column) => (
-                      <th key={column.id} style={{ width: column.width, minWidth: column.width }} className="px-4 py-3">
-                        {column.name}
+                      <th key={column.id} className="relative px-4 py-3 align-top">
+                        <span className="block break-words pr-2">{column.name}</span>
+                        <div
+                          onMouseDown={(event) => startColumnResize(event, column.id)}
+                          title="Drag to resize column"
+                          className="group absolute -right-1 top-0 z-20 flex h-full w-2.5 cursor-col-resize touch-none select-none items-center justify-center"
+                        >
+                          <span className="h-5 w-px bg-mme-purple/25 transition-colors group-hover:bg-mme-purple/80" />
+                        </div>
                       </th>
                     ))}
                   </tr>
@@ -603,7 +789,7 @@ export default function AdminClientsManagementPage() {
                       style={{ animationDelay: `${Math.min(index, 24) * 20}ms` }}
                     >
                       {workspace.columns.map((column) => (
-                        <td key={column.id} style={{ width: column.width, minWidth: column.width }} className="px-4 py-3 align-top">
+                        <td key={column.id} className="min-w-0 overflow-hidden px-2 py-3 align-top">
                           {column.type === "meeting_manager" ? (
                             <div className="flex items-center gap-2">
                               <button
