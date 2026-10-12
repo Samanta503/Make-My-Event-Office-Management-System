@@ -55,6 +55,11 @@ function CallCard({ call }) {
               Logged by {call.createdByName || "—"}
               {call.assignedByEmployeeName ? ` \u00b7 Assigned by ${call.assignedByEmployeeName}` : ""}
             </p>
+            {call.updatedByName && call.updatedByName !== call.createdByName && (
+              <p className="mt-1 text-xs font-semibold text-mme-purple/75">
+                Updated by <span className="font-black text-mme-purple">{call.updatedByName}</span>
+              </p>
+            )}
             {call.completionTag?.expectedLabel && (
               <p className="text-[11px] font-semibold text-mme-purple/45">
                 Originally due: {formatDisplayDatetime(call.completionTag.expectedLabel)}
